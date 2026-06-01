@@ -103,3 +103,22 @@ lives inside `destination_catalog/data/`) and committed it on a new branch `buil
 Added `FeasibilityResult` / `BudgetBreakdown` / `BudgetEstimate` to models.py. 12 tests pass,
 ruff + pyright clean. Next: module 3 — `attractions` (pick + cluster) and `itinerary` (build
 the day-by-day), which gets us to a real Munnar plan.
+
+## 2026-06-01 17:30 — Module 3: attraction_selector + itinerary_builder (first real plan!)
+Built the two composers that turn facts into a plan, both deterministic:
+- `attraction_selector.select_attractions(destination, brief)` → scores stops by
+  worth + interest match, **hard-filters out group-unsuitable stops**, greedily keeps the
+  best while `trip_feasibility_checker` says it still fits, then orders by base + time of day.
+- `itinerary_builder.build_itinerary(destination, stops, days, pace)` → packs ordered stops
+  into days (8h/full day, arrival+departure half, pace factor), labels arrival/departure,
+  never drops a stop silently. Reuses feasibility's hour constants (one source of truth).
+Added `TripBrief` (+ GroupType/Pace/FoodPref enums), `DayPlan`, `Itinerary` to models.
+**Bug caught by an end-to-end smoke run** (not by a unit test): with a soft scoring penalty,
+a `family_with_seniors` trip still picked Eravikulam NP (marked not senior-suitable) and put
+it on the tiring arrival day. Fix: made senior/child suitability a **hard filter**
+(`_suits_group`), since comfort for seniors/kids is a core promise the score must not
+override. Added a regression test asserting Eravikulam is excluded for seniors. Lesson:
+unit tests passed, but composing the modules and *looking at the output* found the real
+issue — keep doing smoke runs. 25 tests pass, ruff + pyright clean. The deterministic core
+now produces a full Munnar day-by-day. Next: module 4 — the AI `planner` (an Agent that
+calls these as tools) + a minimal chat web screen = first end-to-end with the LLM.

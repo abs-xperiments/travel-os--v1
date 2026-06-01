@@ -94,3 +94,60 @@ class BudgetEstimate(BaseModel):
     high: float = Field(description="Upper end of the likely range (₹).")
     confidence: int = Field(ge=0, le=100, description="How tight the estimate is, 0–100.")
     notes: list[str] = Field(default_factory=list)
+
+
+class GroupType(StrEnum):
+    """Who's travelling — drives suitability (e.g. seniors need gentler stops)."""
+
+    solo = "solo"
+    couple = "couple"
+    friends = "friends"
+    family = "family"
+    family_with_children = "family_with_children"
+    family_with_seniors = "family_with_seniors"
+
+
+class Pace(StrEnum):
+    """How packed the days should feel."""
+
+    relaxed = "relaxed"
+    balanced = "balanced"
+    packed = "packed"
+
+
+class FoodPref(StrEnum):
+    vegetarian = "vegetarian"
+    non_vegetarian = "non_vegetarian"
+    jain = "jain"
+    vegan = "vegan"
+    no_preference = "no_preference"
+
+
+class TripBrief(BaseModel):
+    """Everything the planner needs to know about what the traveler wants."""
+
+    start_city: str
+    days: int = Field(gt=0)
+    budget: float = Field(gt=0)
+    group_type: GroupType
+    interests: list[TravelStyle]
+    pace: Pace = Pace.balanced
+    food_pref: FoodPref = FoodPref.no_preference
+    destination_id: str | None = None
+
+
+class DayPlan(BaseModel):
+    """One day of the trip: its stops and any notes (arrival/departure, etc.)."""
+
+    day: int
+    title: str
+    attractions: list[Attraction] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class Itinerary(BaseModel):
+    """A full day-by-day schedule for one destination."""
+
+    destination_id: str
+    days: int
+    day_plans: list[DayPlan]
