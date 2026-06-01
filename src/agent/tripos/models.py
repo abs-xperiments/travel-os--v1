@@ -48,19 +48,37 @@ class Attraction(BaseModel):
     best_time: str = Field(description="When to go, e.g. 'early morning'.")
 
 
+class Coordinates(BaseModel):
+    """A geographic point — used to verify a place exists and to anchor weather/map lookups."""
+
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
 class Destination(BaseModel):
-    """A place you can take a trip to, plus its attractions (loaded from seed JSON)."""
+    """A place you can take a trip to, plus its attractions.
+
+    Comes from the curated catalog (seed JSON) OR from runtime web retrieval — the planner
+    treats both identically. `country`/`coordinates` are optional: blank for the original
+    India catalog, populated for retrieved (worldwide) destinations.
+    """
 
     id: str
     name: str
     state: str
     region: str
     description: str
-    bases: list[str] = Field(description="Towns you'd stay in within this destination.")
+    bases: list[str] = Field(description="Towns/areas you'd stay in within this destination.")
     good_for: list[TravelStyle]
     nearest_railhead: str
     nearest_airport: str
     attractions: list[Attraction] = Field(default_factory=list)
+    country: str | None = Field(
+        default=None, description="Country (set for retrieved destinations)."
+    )
+    coordinates: Coordinates | None = Field(
+        default=None, description="Lat/lon (set for retrieved destinations)."
+    )
 
 
 class FeasibilityResult(BaseModel):
@@ -151,13 +169,6 @@ class Itinerary(BaseModel):
     destination_id: str
     days: int
     day_plans: list[DayPlan]
-
-
-class Coordinates(BaseModel):
-    """A geographic point — used to verify a place exists and to anchor weather/map lookups."""
-
-    lat: float = Field(ge=-90, le=90)
-    lon: float = Field(ge=-180, le=180)
 
 
 class TripPlan(BaseModel):

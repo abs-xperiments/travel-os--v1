@@ -16,6 +16,7 @@ from __future__ import annotations
 from agent.tripos import destination_catalog as catalog
 from agent.tripos.models import Destination, TripBrief
 from agent.tripos.provider_interfaces import slugify
+from agent.tripos.provider_registry import ProviderRegistry
 
 
 class CatalogDestinationProvider:
@@ -34,3 +35,17 @@ class CatalogDestinationProvider:
             return dest
         wanted = query.strip().lower()
         return next((d for d in catalog.list_destinations() if d.name.lower() == wanted), None)
+
+
+def register_defaults(reg: ProviderRegistry) -> None:
+    """Register the Phase-1 providers (idempotent). Catalog is the fast path; web is the
+    global fallback; Nominatim verifies existence. Premium adapters slot in here later."""
+    if reg.get_all("destination"):  # already registered — do nothing
+        return
+    # imported here (not at module top) to keep the lightweight catalog adapter import cheap
+    from agent.tripos.providers.destination_retrieval import WebDestinationProvider
+    from agent.tripos.providers.geocoding import NominatimGeocoder
+
+    reg.register("geocoding", NominatimGeocoder())
+    reg.register("destination", CatalogDestinationProvider(), priority=10)
+    reg.register("destination", WebDestinationProvider(), priority=1)
