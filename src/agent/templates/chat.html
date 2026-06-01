@@ -33,9 +33,19 @@
     {% endfor %}
   </div>
 
+  {% if not transcript and examples %}
+  <div id="examples" class="flex flex-wrap gap-2 px-4 pb-1">
+    {% for ex in examples %}
+    <button type="button"
+      class="example-chip rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300
+             hover:border-sky-500 hover:text-sky-300 transition">{{ ex }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <form id="chat-form" class="flex items-center gap-2 border-t border-slate-800 p-3">
     <input id="chat-input" type="text" name="message" autocomplete="off" required autofocus
-      placeholder="Tell me about your trip…"
+      placeholder="Where to? e.g. ‘Plan 5 days in Kerala’ or ‘Honeymoon in Bali’"
       class="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100
              placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500">
     <button id="chat-send" type="submit"
@@ -46,8 +56,8 @@
 </div>
 
 <script>
-// Streaming chat: POST the message, read the Server-Sent Events stream, and render the
-// assistant's markdown incrementally as chunks arrive (ChatGPT-style).
+// Streaming chat: POST the message, read the Server-Sent Events stream, render the assistant's
+// markdown incrementally, and show a transient progress note while the planner's tools run.
 (function () {
   const form = document.getElementById('chat-form');
   const input = document.getElementById('chat-input');
@@ -67,17 +77,32 @@
     return inner;
   }
 
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const message = input.value.trim();
+  function removeExamples() {
+    const ex = document.getElementById('examples');
+    if (ex) ex.remove();
+  }
+
+  async function send(message) {
     if (!message) return;
     input.value = '';
-    if (controller) controller.abort();           // cancel any in-flight reply
+    removeExamples();
+    if (controller) controller.abort();            // cancel any in-flight reply
     controller = new AbortController();
 
     addBubble('user').textContent = message;
     const bot = addBubble('assistant');
-    bot.innerHTML = '<span class="animate-pulse text-slate-500">▍</span>';  // typing indicator
+    bot.innerHTML = '<span class="animate-pulse text-slate-500">▍</span>';   // typing indicator
+
+    // A separate, transient "what's happening" note shown while a tool runs (Issue 2).
+    const progRow = document.createElement('div');
+    progRow.className = 'flex';
+    progRow.style.display = 'none';
+    const prog = document.createElement('div');
+    prog.className = 'max-w-[90%] rounded-2xl bg-slate-900/60 px-4 py-2 text-sm ' +
+                    'text-slate-400 whitespace-pre-line animate-pulse';
+    progRow.appendChild(prog);
+    chat.appendChild(progRow);
+    const hideProg = () => { progRow.style.display = 'none'; };
 
     let acc = '';
     try {
@@ -95,26 +120,38 @@
         if (done) break;
         buf += decoder.decode(value, { stream: true });
         let i;
-        while ((i = buf.indexOf('\n\n')) >= 0) {            // one SSE event per blank line
+        while ((i = buf.indexOf('\n\n')) >= 0) {          // one SSE event per blank line
           const raw = buf.slice(0, i).trim();
           buf = buf.slice(i + 2);
           if (!raw.startsWith('data:')) continue;
           const data = JSON.parse(raw.slice(5).trim());
           if (data.t !== undefined) {
+            hideProg();
             acc += data.t;
-            bot.innerHTML = marked.parse(acc);           // preserve markdown while streaming
+            bot.innerHTML = marked.parse(acc);            // preserve markdown while streaming
+          } else if (data.status !== undefined) {
+            prog.textContent = data.status;               // show progress during a tool call
+            progRow.style.display = 'flex';
           } else if (data.error) {
+            hideProg();
             bot.innerHTML = marked.parse(acc + '\n\n*' + data.error + '*');
           }
           chat.scrollTop = chat.scrollHeight;
         }
       }
+      hideProg();
       if (acc) bot.innerHTML = marked.parse(acc);
     } catch (err) {
-      if (err.name === 'AbortError') return;             // superseded by a newer message
+      hideProg();
+      if (err.name === 'AbortError') return;              // superseded by a newer message
       bot.innerHTML = 'Sorry — the connection dropped. Please try again.';
     }
     chat.scrollTop = chat.scrollHeight;
+  }
+
+  form.addEventListener('submit', (e) => { e.preventDefault(); send(input.value.trim()); });
+  document.querySelectorAll('.example-chip').forEach((b) => {
+    b.addEventListener('click', () => send(b.textContent.trim()));
   });
 })();
 </script>

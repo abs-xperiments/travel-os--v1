@@ -295,3 +295,25 @@ DEPLOYED Phase 1 to Railway + VERIFIED IN PROD: a fully-specified request stream
 4-day **Bali** plan (Nusa Penida, Tanah Lot, Tegallalang, Pura Besakih) — international,
 not in the catalog, retrieved live on https://tripos-web-production-4f1c.up.railway.app.
 Branch pushed to GitHub. Phase 1 shipped.
+
+## 2026-06-02 — Post-Phase-1 fixes (3 product issues)
+Issue 1 (conversation dead-end): root cause = the model sometimes ends a turn with a "I'll
+put that together" PROMISE and no build_trip tool call, so agent.iter completes with no plan.
+Fix (2 layers): (a) strengthened the system prompt — "each turn do exactly ONE: ask ONE
+question OR call build_trip; never promise-and-stop"; (b) deterministic guard in stream_reply
+— track whether a tool was called this turn; if not AND the streamed text matches a narrow
+PROMISE regex (won't match questions), auto-continue ONCE with a forced "call build_trip now"
+nudge so the plan lands in the SAME response (no extra user prompt). Verified the regex
+matches promises but not questions (offline test).
+Issue 2 (blank during planning): the silent gap was build_trip executing (geocode+research+
+extract) with no tokens streaming. Fix using the EXISTING SSE (not a rebuild): stream_reply
+emits a kind="status" piece the moment a build_trip tool call starts; chat_stream maps it to
+`data:{status}`; chat.html shows it as a transient dimmed progress note ("Building your trip…
+• Retrieving destination intelligence • Selecting stops • Optimising route • Estimating
+budget") that's replaced when plan tokens arrive. Verified live: status fires once, plan
+streams in one turn with real Munnar stops.
+Issue 3 (India-only copy): updated GREETING to "...anywhere in the world 🌍", input placeholder,
+and added example-prompt chips (domestic + international: Kerala/Japan/Bali/Vietnam/Europe/
+family) shown on a fresh chat; clicking a chip sends it. Copy/positioning only — no layout
+redesign. (System prompt already said worldwide since Phase 1D.)
+32 offline tests pass, ruff+pyright clean. Next: deploy + verify in prod.

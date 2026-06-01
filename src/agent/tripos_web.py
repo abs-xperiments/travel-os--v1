@@ -40,11 +40,20 @@ AUTH_COOKIE = "tripos_auth"  # holds the app password once logged in
 SESSION_COOKIE = "tripos_session"  # holds the current trip id
 
 GREETING = (
-    "Hi! I'm **TripOS**, your travel planner for destinations across India. ✈️\n\n"
-    "Tell me about your trip — where you're starting from, how many days, who's coming, "
-    "your budget, and what you enjoy — or just say **discover** if you're not sure where "
-    "to go yet."
+    "Hi! I'm **TripOS**, your AI travel planner for destinations **anywhere in the world**. 🌍\n\n"
+    "Tell me about your trip — where you'd like to go (or say **discover** if you're not sure), "
+    "where you're starting from, how many days, who's coming, your budget, and what you enjoy."
 )
+
+# Example prompts shown on a fresh chat (domestic + international) to signal global coverage.
+EXAMPLES = [
+    "Plan a 5-day trip to Kerala",
+    "Build an 8-day Japan itinerary",
+    "Suggest a honeymoon in Bali",
+    "Plan a budget trip to Vietnam",
+    "Create a 10-day Europe itinerary",
+    "Ideas for a 6-day family vacation",
+]
 
 
 @asynccontextmanager
@@ -105,7 +114,12 @@ async def index(request: Request) -> Response:
     response = templates.TemplateResponse(
         request,
         "chat.html",
-        {"greeting": GREETING, "transcript": trip.transcript if trip else [], "trip_id": trip_id},
+        {
+            "greeting": GREETING,
+            "transcript": trip.transcript if trip else [],
+            "trip_id": trip_id,
+            "examples": EXAMPLES,
+        },
     )
     _remember_session(response, trip_id)
     return response
@@ -129,6 +143,8 @@ async def chat_stream(request: Request, message: Annotated[str, Form()]) -> Stre
                 if piece.kind == "delta":
                     parts.append(piece.text)
                     yield f"data: {json.dumps({'t': piece.text})}\n\n"
+                elif piece.kind == "status":  # transient progress while a tool runs
+                    yield f"data: {json.dumps({'status': piece.text})}\n\n"
                 else:  # done
                     await trip_store.append_turn(
                         trip_id, message, "".join(parts), piece.messages_json
@@ -159,7 +175,12 @@ async def open_trip(request: Request, trip_id: str) -> Response:
     response = templates.TemplateResponse(
         request,
         "chat.html",
-        {"greeting": GREETING, "transcript": trip.transcript, "trip_id": trip_id},
+        {
+            "greeting": GREETING,
+            "transcript": trip.transcript,
+            "trip_id": trip_id,
+            "examples": EXAMPLES,
+        },
     )
     _remember_session(response, trip_id)
     return response

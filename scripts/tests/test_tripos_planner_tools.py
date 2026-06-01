@@ -10,7 +10,18 @@ the streaming smoke.
 
 from __future__ import annotations
 
-from agent.agents.tripos_planner import build_trip, list_destinations
+from agent.agents.tripos_planner import _PROMISE_RE, build_trip, list_destinations
+
+
+def test_promise_regex_triggers_on_build_promises_not_on_questions():
+    # The dead-end guard fires only when the model PROMISED to build but didn't call the tool.
+    assert _PROMISE_RE.search("Great! I'll put that together for you.")
+    assert _PROMISE_RE.search("Let me build that plan now.")
+    assert _PROMISE_RE.search("I'm going to prepare your itinerary.")
+    # ...but NOT on legitimate clarifying questions or a plan it actually delivered.
+    assert not _PROMISE_RE.search("Which city are you starting from?")
+    assert not _PROMISE_RE.search("Want me to suggest a few options?")
+    assert not _PROMISE_RE.search("Here's your 3-day plan, ready to go!")
 
 
 def test_list_destinations_includes_munnar():
