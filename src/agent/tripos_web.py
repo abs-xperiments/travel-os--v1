@@ -14,6 +14,8 @@ reopened from their own URL (/trip/{id}), and appear in a saved-trips list (/tri
 
 from __future__ import annotations
 
+import asyncio
+import json
 import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -21,11 +23,11 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, Form, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
-from agent.agents.tripos_planner import planner_agent
+from agent.agents.tripos_planner import stream_reply
 from agent.config import get_settings
 from agent.logging_setup import setup_logging
 from agent.services import db
@@ -109,21 +111,40 @@ async def index(request: Request) -> Response:
     return response
 
 
-@app.post("/chat")
-async def chat(request: Request, message: Annotated[str, Form()]) -> Response:
-    """Run one conversation turn, persist it, and return the bubbles as an HTMX fragment."""
+@app.post("/chat/stream")
+async def chat_stream(request: Request, message: Annotated[str, Form()]) -> StreamingResponse:
+    """Stream the assistant's reply as Server-Sent Events; persist the turn once it completes.
+
+    Each event is `data: {"t": "<delta>"}` (a text chunk), then a final `data: {"done": true}`.
+    Errors come back as `data: {"error": "..."}`. If the client disconnects (e.g. the user
+    sends another message), the generator is cancelled and the partial turn is simply not saved.
+    """
     trip_id = await trip_store.ensure_trip(request.cookies.get(SESSION_COOKIE))
     history = await trip_store.load_agent_messages(trip_id)
-    try:
-        result = await planner_agent.run(message, message_history=history)
-        reply = result.output
-        await trip_store.append_turn(trip_id, message, reply, result.all_messages_json().decode())
-    except Exception:
-        logger.exception("planner run failed for trip {}", trip_id)
-        reply = "Sorry — I hit a problem just now. Could you try rephrasing that?"
 
-    response = templates.TemplateResponse(
-        request, "_turn.html", {"user_message": message, "reply": reply}
+    async def events() -> AsyncIterator[str]:
+        parts: list[str] = []
+        try:
+            async for piece in stream_reply(message, history):
+                if piece.kind == "delta":
+                    parts.append(piece.text)
+                    yield f"data: {json.dumps({'t': piece.text})}\n\n"
+                else:  # done
+                    await trip_store.append_turn(
+                        trip_id, message, "".join(parts), piece.messages_json
+                    )
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+        except asyncio.CancelledError:
+            raise  # client went away / sent a new message — stop quietly, don't persist
+        except Exception:
+            logger.exception("stream failed for trip {}", trip_id)
+            err = json.dumps({"error": "Something went wrong generating that reply."})
+            yield f"data: {err}\n\n"
+
+    response = StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
     _remember_session(response, trip_id)
     return response

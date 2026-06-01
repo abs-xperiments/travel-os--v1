@@ -245,3 +245,22 @@ push to GitHub when ready). Day-2: `railway up` to redeploy, `railway logs` to d
 `railway variables --set` to change secrets. Possible next: spot-check the 23 AI-drafted
 destination datasets; distance-aware transport/budget (transport composer); runtime fallback
 for un-seeded destinations; V2 (driver quotes/bookings/payments).
+
+## 2026-06-02 — Streaming responses (SSE), ChatGPT-style
+Replaced the blocking POST /chat (returned the full reply at once) with streaming. Key
+learning: for a TOOL-CALLING agent, pydantic-ai's `run_stream()` only streams the FIRST
+model turn (the preamble) and misses the plan written AFTER build_plan runs. Verified this,
+then switched to `agent.iter()` + per-node `node.stream(run.ctx)`, extracting text from
+PartStartEvent(TextPart)/PartDeltaEvent(TextPartDelta) — this streams EVERY model step
+(preamble status lines + the final plan). Added `stream_reply()` (+ `StreamPiece`) to
+agents/tripos_planner.py (keeps streaming logic with the agent, testable); web layer just
+frames SSE. New route POST /chat/stream → `text/event-stream`, events `data:{"t":delta}` …
+`data:{"done":true}` (errors `data:{"error":..}`); persists the turn via append_turn on
+'done' using run.result.all_messages_json(). Frontend: chat form now a small vanilla-JS
+fetch+ReadableStream handler that parses SSE, appends deltas, re-renders markdown live
+(marked), shows a ▍ typing cursor, AbortController cancels the prior stream when a new
+message is sent, and a catch handles dropped connections. Removed the old /chat route +
+_turn.html. SSE headers Cache-Control:no-cache + X-Accel-Buffering:no to avoid proxy
+buffering. Verified live locally: first token immediate, chunks stream continuously, done
+event fires, out-of-scope handling works mid-stream, markdown preserved. ruff+pyright clean,
+32 tests pass. Next: redeploy to Railway + verify streaming in prod.

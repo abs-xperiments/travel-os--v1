@@ -10,8 +10,17 @@ The system prompt is the plain-English rulebook from docs/policy.md, condensed.
 
 from __future__ import annotations
 
-from pydantic import ValidationError
+from collections.abc import AsyncIterator
+
+from pydantic import BaseModel, ValidationError
 from pydantic_ai import Agent
+from pydantic_ai.messages import (
+    ModelMessage,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
+)
 
 from agent.services.llm import build_model
 from agent.tripos import destination_catalog as catalog
@@ -135,3 +144,39 @@ def build_plan(
 planner_agent = Agent(build_model("balanced"), system_prompt=SYSTEM_PROMPT)
 planner_agent.tool_plain(list_destinations)
 planner_agent.tool_plain(build_plan)
+
+
+class StreamPiece(BaseModel):
+    """One item from stream_reply: an incremental text delta, or the final 'done' marker."""
+
+    kind: str  # "delta" | "done"
+    text: str = ""  # the text delta (when kind == "delta")
+    messages_json: str = ""  # full serialized history (when kind == "done"), for persistence
+
+
+async def stream_reply(
+    message: str, message_history: list[ModelMessage]
+) -> AsyncIterator[StreamPiece]:
+    """Stream the planner's reply token-by-token — the preamble AND the post-tool answer.
+
+    We use `agent.iter()` (not `run_stream()`): our agent calls the `build_plan` tool, and
+    `run_stream()` alone would only stream the first model turn (the preamble), missing the
+    actual plan the model writes *after* the tool returns. iterating the run lets us stream
+    text from every model step. Ends with one kind="done" piece carrying the serialized
+    history, so the caller can persist the turn.
+    """
+    async with planner_agent.iter(message, message_history=message_history) as run:
+        async for node in run:
+            if Agent.is_model_request_node(node):
+                async with node.stream(run.ctx) as model_stream:
+                    async for event in model_stream:
+                        if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+                            if event.part.content:
+                                yield StreamPiece(kind="delta", text=event.part.content)
+                        elif isinstance(event, PartDeltaEvent) and isinstance(
+                            event.delta, TextPartDelta
+                        ):
+                            yield StreamPiece(kind="delta", text=event.delta.content_delta)
+        result = run.result
+        if result is not None:
+            yield StreamPiece(kind="done", messages_json=result.all_messages_json().decode())

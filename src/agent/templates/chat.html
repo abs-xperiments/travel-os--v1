@@ -33,17 +33,89 @@
     {% endfor %}
   </div>
 
-  <form id="chat-form" hx-post="/chat" hx-target="#chat" hx-swap="beforeend"
-        class="flex items-center gap-2 border-t border-slate-800 p-3">
-    <input type="text" name="message" autocomplete="off" required autofocus
+  <form id="chat-form" class="flex items-center gap-2 border-t border-slate-800 p-3">
+    <input id="chat-input" type="text" name="message" autocomplete="off" required autofocus
       placeholder="Tell me about your trip…"
       class="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100
              placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500">
-    <button type="submit"
+    <button id="chat-send" type="submit"
       class="rounded-xl bg-sky-600 px-5 py-3 font-semibold hover:bg-sky-500 transition">
       Send
     </button>
   </form>
-  <div class="htmx-indicator px-4 pb-2 text-sm text-slate-400">TripOS is thinking…</div>
 </div>
+
+<script>
+// Streaming chat: POST the message, read the Server-Sent Events stream, and render the
+// assistant's markdown incrementally as chunks arrive (ChatGPT-style).
+(function () {
+  const form = document.getElementById('chat-form');
+  const input = document.getElementById('chat-input');
+  const chat = document.getElementById('chat');
+  let controller = null;
+
+  function addBubble(role) {
+    const row = document.createElement('div');
+    row.className = role === 'user' ? 'flex justify-end' : 'flex';
+    const inner = document.createElement('div');
+    inner.className = role === 'user'
+      ? 'max-w-[85%] whitespace-pre-wrap rounded-2xl bg-sky-600 px-4 py-3'
+      : 'md max-w-[90%] rounded-2xl bg-slate-900 px-4 py-3';
+    row.appendChild(inner);
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+    return inner;
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = '';
+    if (controller) controller.abort();           // cancel any in-flight reply
+    controller = new AbortController();
+
+    addBubble('user').textContent = message;
+    const bot = addBubble('assistant');
+    bot.innerHTML = '<span class="animate-pulse text-slate-500">▍</span>';  // typing indicator
+
+    let acc = '';
+    try {
+      const res = await fetch('/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ message }),
+        signal: controller.signal,
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {            // one SSE event per blank line
+          const raw = buf.slice(0, i).trim();
+          buf = buf.slice(i + 2);
+          if (!raw.startsWith('data:')) continue;
+          const data = JSON.parse(raw.slice(5).trim());
+          if (data.t !== undefined) {
+            acc += data.t;
+            bot.innerHTML = marked.parse(acc);           // preserve markdown while streaming
+          } else if (data.error) {
+            bot.innerHTML = marked.parse(acc + '\n\n*' + data.error + '*');
+          }
+          chat.scrollTop = chat.scrollHeight;
+        }
+      }
+      if (acc) bot.innerHTML = marked.parse(acc);
+    } catch (err) {
+      if (err.name === 'AbortError') return;             // superseded by a newer message
+      bot.innerHTML = 'Sorry — the connection dropped. Please try again.';
+    }
+    chat.scrollTop = chat.scrollHeight;
+  });
+})();
+</script>
 {% endblock %}
