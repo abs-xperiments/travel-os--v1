@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="flex flex-col h-screen max-w-2xl mx-auto">
+  <header class="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+    <div>
+      <span class="text-xl font-bold">✈️ TripOS</span>
+      <span class="ml-1 text-sm text-slate-400">your AI travel planner</span>
+    </div>
+    <a href="/reset" class="text-sm text-sky-400 hover:underline">New trip</a>
+  </header>
+
+  <div id="chat" class="flex-1 space-y-4 overflow-y-auto px-4 py-6">
+    <div class="flex">
+      <div class="md max-w-[90%] rounded-2xl bg-slate-900 px-4 py-3" data-md>{{ greeting }}</div>
+    </div>
+  </div>
+
+  <form id="chat-form" hx-post="/chat" hx-target="#chat" hx-swap="beforeend"
+        class="flex items-center gap-2 border-t border-slate-800 p-3">
+    <input type="text" name="message" autocomplete="off" required autofocus
+      placeholder="Tell me about your trip…"
+      class="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100
+             placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500">
+    <button type="submit"
+      class="rounded-xl bg-sky-600 px-5 py-3 font-semibold hover:bg-sky-500 transition">
+      Send
+    </button>
+  </form>
+  <div class="htmx-indicator px-4 pb-2 text-sm text-slate-400">TripOS is thinking…</div>
+</div>
+{% endblock %}

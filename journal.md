@@ -166,3 +166,21 @@ as Delhi→Goa today) — distance-aware costs come with the transport composer 
 OPEN OPTION: a runtime provider that auto-generates+caches data for a destination not yet in
 the catalog (truly "any destination" without pre-seeding). Deferred; current design already
 satisfies "add a destination = add data, no code change". Next: module 5 — the web UI.
+
+## 2026-06-01 19:20 — Module 5: web UI (browser chat), end-to-end verified
+Built `src/agent/tripos_web.py` (FastAPI) + `src/agent/templates/` (base/chat/_turn/login),
+reusing the starter's `examples/agent_idea_web` pattern: Jinja2 + HTMX + Tailwind + marked,
+all via CDN, no JS build. It's a CHAT UI (not the example's one-shot pipeline): POST /chat
+runs the SAME `planner_agent` from the CLI and returns user+assistant bubbles as an HTMX
+fragment appended to the log; assistant markdown is rendered client-side by marked (user text
+stays escaped — no injection). Conversation history is IN MEMORY per session cookie for now
+(`_SESSIONS` dict) — the persistence module will move it to Neon. Reused the APP_PASSWORD
+gate + /login from the example. Routes: /, /chat, /reset, /login.
+Verified live against a running server (port 8123): GET / → 303 to /login (gate works, user
+has APP_PASSWORD set) → logged in → POST /chat for a Coorg trip returned a full plan with
+real stops (Abbey Falls, Pushpagiri, Talacauvery), our exact budget range (₹17,355–₹23,445),
+estimates labeled, rendered as markdown. Whole chain browser→agent→tools→modules→HTML works.
+ruff + pyright clean. NOTE: railway.toml still points at the example app — switch it to
+`fastapi run src/agent/tripos_web.py` in the deploy step. Next: module 6 — persistence
+(Neon: tripos_trips/_messages/_shares) so chats/trips survive restarts + can be saved/reopened,
+then export/share, then Railway deploy.

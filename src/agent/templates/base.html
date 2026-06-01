@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}TripOS{% endblock %}</title>
+  <!-- HTMX (dynamic, no JS to write), Tailwind (styling), marked (render the agent's
+       markdown). All via CDN — no build step. The Tailwind CDN build is for
+       prototyping/teaching; a production app would compile it ahead of time. -->
+  <script src="https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* Minimal styling for the markdown the assistant returns (Tailwind's typography
+       plugin isn't in the CDN build, so we style the basics ourselves). */
+    .md h1,.md h2,.md h3{font-weight:700;margin:.6em 0 .3em}
+    .md h2{font-size:1.15rem}.md h3{font-size:1.05rem}
+    .md p{margin:.4em 0}.md ul,.md ol{margin:.4em 0;padding-left:1.25em;list-style:revert}
+    .md table{width:100%;border-collapse:collapse;margin:.5em 0;font-size:.9em}
+    .md th,.md td{border:1px solid #334155;padding:.35em .6em;text-align:left}
+    .md code{background:#1e293b;padding:.1em .35em;border-radius:.3em}
+    .md a{color:#38bdf8;text-decoration:underline}
+    .htmx-indicator{opacity:0;transition:opacity .2s}
+    .htmx-request .htmx-indicator,.htmx-request.htmx-indicator{opacity:1}
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased">
+  {% block body %}
+  <main class="max-w-2xl mx-auto px-4 py-12">{% block content %}{% endblock %}</main>
+  {% endblock %}
+  <script>
+    // Render any new assistant bubbles (their raw markdown sits safely in a text node).
+    function renderMarkdown(){
+      document.querySelectorAll('.md[data-md]:not([data-done])').forEach(function(el){
+        el.innerHTML = marked.parse(el.textContent);
+        el.setAttribute('data-done','1');
+      });
+    }
+    function scrollChat(){ var c=document.getElementById('chat'); if(c){ c.scrollTop=c.scrollHeight; } }
+    document.addEventListener('DOMContentLoaded', function(){ renderMarkdown(); scrollChat(); });
+    document.body.addEventListener('htmx:afterSwap', function(){
+      renderMarkdown(); scrollChat();
+      var f=document.getElementById('chat-form'); if(f){ f.reset(); }
+    });
+  </script>
+</body>
+</html>
