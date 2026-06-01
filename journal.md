@@ -291,3 +291,7 @@ retrieval and SSE streaming (agent.iter) still works. Phase 1 = 38 tests (32 off
 integration), ruff+pyright clean. Next: deploy Phase 1 to Railway + verify a non-catalog
 destination streams in prod. Then Phase 2 (stay-first + accommodation/restaurant/weather
 intelligence behind the same provider interfaces) and Phase 3 (circuits + premium adapters).
+DEPLOYED Phase 1 to Railway + VERIFIED IN PROD: a fully-specified request streamed a real
+4-day **Bali** plan (Nusa Penida, Tanah Lot, Tegallalang, Pura Besakih) — international,
+not in the catalog, retrieved live on https://tripos-web-production-4f1c.up.railway.app.
+Branch pushed to GitHub. Phase 1 shipped.
