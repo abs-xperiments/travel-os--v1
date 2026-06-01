@@ -6,13 +6,28 @@
       <span class="text-xl font-bold">✈️ TripOS</span>
       <span class="ml-1 text-sm text-slate-400">your AI travel planner</span>
     </div>
-    <a href="/reset" class="text-sm text-sky-400 hover:underline">New trip</a>
+    <nav class="flex gap-4 text-sm">
+      <a href="/trips" class="text-sky-400 hover:underline">Saved trips</a>
+      <a href="/reset" class="text-sky-400 hover:underline">New trip</a>
+    </nav>
   </header>
 
   <div id="chat" class="flex-1 space-y-4 overflow-y-auto px-4 py-6">
-    <div class="flex">
-      <div class="md max-w-[90%] rounded-2xl bg-slate-900 px-4 py-3" data-md>{{ greeting }}</div>
-    </div>
+    {% for m in transcript %}
+      {% if m.role == "user" %}
+      <div class="flex justify-end">
+        <div class="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-sky-600 px-4 py-3">{{ m.content }}</div>
+      </div>
+      {% else %}
+      <div class="flex">
+        <div class="md max-w-[90%] rounded-2xl bg-slate-900 px-4 py-3" data-md>{{ m.content }}</div>
+      </div>
+      {% endif %}
+    {% else %}
+      <div class="flex">
+        <div class="md max-w-[90%] rounded-2xl bg-slate-900 px-4 py-3" data-md>{{ greeting }}</div>
+      </div>
+    {% endfor %}
   </div>
 
   <form id="chat-form" hx-post="/chat" hx-target="#chat" hx-swap="beforeend"

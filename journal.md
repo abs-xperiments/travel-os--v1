@@ -184,3 +184,25 @@ ruff + pyright clean. NOTE: railway.toml still points at the example app — swi
 `fastapi run src/agent/tripos_web.py` in the deploy step. Next: module 6 — persistence
 (Neon: tripos_trips/_messages/_shares) so chats/trips survive restarts + can be saved/reopened,
 then export/share, then Railway deploy.
+
+## 2026-06-01 20:05 — Module 6: persistence (trips saved/reopened in Neon)
+Built `tripos/trip_store` (+ migration `001_create_tripos.sql`, + README). Simplified the
+schema vs the plan: ONE table `tripos_trips` — a trip IS its conversation, and its id (uuid
+hex) doubles as the shareable URL, so no separate messages/shares tables needed for V1. Each
+trip stores `transcript` jsonb ([{role,content}] for display) AND `agent_messages` jsonb
+(pydantic-ai history via `result.all_messages_json()` ↔ `ModelMessagesTypeAdapter.validate_json`)
+so the AI continues with full context after a restart. Verified the serialization API in the
+installed pydantic_ai 1.104 before using it. Functions: init_db / ensure_trip / get_trip /
+load_agent_messages / append_turn / list_recent.
+Rewired `tripos_web.py`: lifespan applies migrations on startup + closes the pool; replaced
+the in-memory `_SESSIONS` with trip_store; added GET /trip/{id} (reopen + share link) and GET
+/trips (saved-trips dashboard); session cookie now holds the trip id. Templates: chat.html
+renders saved transcript (for/else → greeting when empty) + "Saved trips" link; new trips.html.
+Verified: trip_store integration test passes against real Neon (create→append→reopen→list,
+with cleanup); web boots with the new lifespan, login + GET / + GET /trips all 200. First
+integration run hit a transient Neon cold-start TLS ConnectionReset — retry passed; the
+starter's own db test showed the same ~33s cold start, so it's environmental, not a bug.
+32 offline + 1 integration test pass, ruff + pyright clean. Known: GET / creates an empty
+trip row per fresh visit (dashboard hides empty ones via jsonb_array_length>0). Next: module
+7 — export (PDF) + polish the share flow; then module 8 — Railway deploy (switch railway.toml
+startCommand to `fastapi run src/agent/tripos_web.py`, set APP_PASSWORD + keys as Railway vars).
