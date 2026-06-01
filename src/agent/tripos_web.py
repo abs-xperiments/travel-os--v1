@@ -103,7 +103,7 @@ async def index(request: Request) -> Response:
     response = templates.TemplateResponse(
         request,
         "chat.html",
-        {"greeting": GREETING, "transcript": trip.transcript if trip else []},
+        {"greeting": GREETING, "transcript": trip.transcript if trip else [], "trip_id": trip_id},
     )
     _remember_session(response, trip_id)
     return response
@@ -136,10 +136,25 @@ async def open_trip(request: Request, trip_id: str) -> Response:
     if trip is None:
         return HTMLResponse("Trip not found", status_code=404)
     response = templates.TemplateResponse(
-        request, "chat.html", {"greeting": GREETING, "transcript": trip.transcript}
+        request,
+        "chat.html",
+        {"greeting": GREETING, "transcript": trip.transcript, "trip_id": trip_id},
     )
     _remember_session(response, trip_id)
     return response
+
+
+@app.get("/trip/{trip_id}/print")
+async def print_trip(request: Request, trip_id: str) -> Response:
+    """A clean, print-optimized page — use the browser's 'Save as PDF' to export."""
+    trip = await trip_store.get_trip(trip_id)
+    if trip is None:
+        return HTMLResponse("Trip not found", status_code=404)
+    return templates.TemplateResponse(
+        request,
+        "print.html",
+        {"trip_id": trip_id, "title": trip.title, "transcript": trip.transcript},
+    )
 
 
 @app.get("/trips")

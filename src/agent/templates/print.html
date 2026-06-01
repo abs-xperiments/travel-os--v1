@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The <title> becomes the default filename when the user picks "Save as PDF". -->
+  <title>TripOS – {{ title or "Trip" }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body{font-family:system-ui,-apple-system,sans-serif;max-width:760px;margin:0 auto;
+         padding:2rem;color:#0f172a;line-height:1.5}
+    h1{font-size:1.6rem;margin:0 0 .15rem}
+    .sub{color:#64748b;margin-bottom:1.5rem;font-size:.9rem}
+    .turn{margin:1.1rem 0}
+    .you{font-weight:600;color:#0369a1;font-size:.85rem;margin-bottom:.15rem}
+    .md h1,.md h2,.md h3{font-weight:700;margin:.6em 0 .3em}
+    .md h2{font-size:1.15rem}.md h3{font-size:1.02rem}
+    .md table{width:100%;border-collapse:collapse;margin:.5rem 0;font-size:.92em}
+    .md th,.md td{border:1px solid #cbd5e1;padding:.35rem .6rem;text-align:left}
+    .md ul,.md ol{padding-left:1.25rem}
+    .toolbar{margin-bottom:1.25rem;display:flex;gap:.5rem}
+    button,a.btn{font:inherit;padding:.5rem .9rem;border-radius:.5rem;border:1px solid #cbd5e1;
+      background:#f1f5f9;cursor:pointer;text-decoration:none;color:#0f172a}
+    button{background:#0284c7;color:#fff;border-color:#0284c7}
+    @media print{ .toolbar{display:none} body{padding:0;max-width:none} }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">📄 Save as PDF</button>
+    <a class="btn" href="/trip/{{ trip_id }}">← Back to chat</a>
+  </div>
+
+  <h1>✈️ {{ title or "Your TripOS plan" }}</h1>
+  <div class="sub">Planned with TripOS · prices are estimates, not booked quotes</div>
+
+  {% for m in transcript %}
+    {% if m.role == "user" %}
+    <div class="turn"><div class="you">You asked</div><div>{{ m.content }}</div></div>
+    {% else %}
+    <div class="turn"><div class="md" data-md>{{ m.content }}</div></div>
+    {% endif %}
+  {% endfor %}
+
+  <script>
+    // Render the assistant's markdown (its text sits safely in a text node until now).
+    document.querySelectorAll('.md[data-md]').forEach(function(el){
+      el.innerHTML = marked.parse(el.textContent);
+    });
+  </script>
+</body>
+</html>

@@ -7,6 +7,9 @@
       <span class="ml-1 text-sm text-slate-400">your AI travel planner</span>
     </div>
     <nav class="flex gap-4 text-sm">
+      {% if transcript %}
+      <a href="/trip/{{ trip_id }}/print" class="text-sky-400 hover:underline">📄 PDF</a>
+      {% endif %}
       <a href="/trips" class="text-sky-400 hover:underline">Saved trips</a>
       <a href="/reset" class="text-sky-400 hover:underline">New trip</a>
     </nav>

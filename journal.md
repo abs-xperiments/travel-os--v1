@@ -206,3 +206,19 @@ starter's own db test showed the same ~33s cold start, so it's environmental, no
 trip row per fresh visit (dashboard hides empty ones via jsonb_array_length>0). Next: module
 7 — export (PDF) + polish the share flow; then module 8 — Railway deploy (switch railway.toml
 startCommand to `fastapi run src/agent/tripos_web.py`, set APP_PASSWORD + keys as Railway vars).
+
+## 2026-06-01 20:35 — Module 7: PDF export (print view, dependency-free)
+Chose a **print-optimized HTML page + browser "Save as PDF"** over a server-side PDF library.
+Rationale: the plan lives as the assistant's markdown in the transcript; a print view reuses
+the same marked renderer (tables/headers intact), adds ZERO dependencies, and avoids fragile
+Docker/system libs (weasyprint) or worse output (xhtml2pdf) right before the Railway deploy.
+The user clicks "Save as PDF" → real PDF, filename = the <title> (trip title). Added:
+- GET /trip/{id}/print → `print.html` (standalone light-theme printable doc; @media print hides
+  the toolbar; renders transcript, user prompts as light context, assistant markdown as body).
+- "📄 PDF" link in the chat header (shown once there's a transcript) and per-trip on /trips.
+- Passed trip_id into chat.html.
+Verified live: seeded a trip row (no LLM), GET /trip/{id}/print → 200 with the "Save as PDF"
+button and the plan content; markdown table renders in-browser (same path as chat). Cleaned up
+the seeded row. ruff + pyright clean, 32 offline tests pass. NOTE for deploy: if a true
+one-click server-generated .pdf is ever wanted, revisit with a pure-python lib. Next: module 8
+— Railway DEPLOY (the V1 finish line).
