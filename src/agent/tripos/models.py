@@ -61,3 +61,36 @@ class Destination(BaseModel):
     nearest_railhead: str
     nearest_airport: str
     attractions: list[Attraction] = Field(default_factory=list)
+
+
+class FeasibilityResult(BaseModel):
+    """Whether a set of attractions realistically fits the available days, with the math."""
+
+    realistic: bool
+    required_hours: float = Field(description="Time the chosen stops need, incl. travel.")
+    available_hours: float = Field(description="Usable sightseeing hours over the trip.")
+    reasons: list[str] = Field(description="Plain-English explanation of the verdict.")
+    suggestions: list[str] = Field(
+        default_factory=list, description="How to fix it if it doesn't fit (drop stops / add days)."
+    )
+
+
+class BudgetBreakdown(BaseModel):
+    """Per-category cost inputs in ₹. Composer modules fill this; the estimator totals it."""
+
+    transport: float = Field(ge=0)
+    accommodation: float = Field(ge=0)
+    food: float = Field(ge=0)
+    activities: float = Field(ge=0)
+    misc: float = Field(default=0.0, ge=0)
+
+
+class BudgetEstimate(BaseModel):
+    """A trip's total cost as a single figure plus an honest likely range."""
+
+    by_category: dict[str, float]
+    total: float
+    low: float = Field(description="Lower end of the likely range (₹).")
+    high: float = Field(description="Upper end of the likely range (₹).")
+    confidence: int = Field(ge=0, le=100, description="How tight the estimate is, 0–100.")
+    notes: list[str] = Field(default_factory=list)

@@ -86,3 +86,20 @@ pyright clean, tests pass. Learned: ruff prefers `enum.StrEnum` over `(str, Enum
 3.12 (UP042). Note: unknown destination returns None — that's the data-layer half of the
 "out of scope" failure mode. Next: module 2 — `feasibility` + `budget` (pure rules,
 high value, easy to test).
+
+## 2026-06-01 16:55 — Module 2: trip_feasibility_checker + budget_estimator + per-module READMEs
+On the user's request, adopted a clearer convention: **each module is a descriptively-named
+folder** (`destination_catalog/`, `trip_feasibility_checker/`, `budget_estimator/`) with code
+in `__init__.py` and a **plain-English README.md** (purpose + step-by-step + how to debug),
+so a non-technical person can navigate and debug. Restructured module 1 to match (data now
+lives inside `destination_catalog/data/`) and committed it on a new branch `build/tripos-v1`
+(kept `main` clean). Built module 2, both pure/deterministic (no AI, no network):
+- `trip_feasibility_checker.check_feasibility(attractions, days)` → required vs usable hours
+  (8h/full day; arrival+departure days partial), verdict + reasons + fix suggestions (add N
+  days / drop M lowest-worth stops). Tunable constants up top.
+- `budget_estimator.estimate_budget(breakdown, budget?)` → total + low/high range (per-category
+  uncertainty; accommodation ±20% is widest), confidence 50–95 from relative spread, and an
+  over/under-budget note. Range-not-point is deliberate honesty (V1 prices are estimates).
+Added `FeasibilityResult` / `BudgetBreakdown` / `BudgetEstimate` to models.py. 12 tests pass,
+ruff + pyright clean. Next: module 3 — `attractions` (pick + cluster) and `itinerary` (build
+the day-by-day), which gets us to a real Munnar plan.
