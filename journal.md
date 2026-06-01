@@ -263,4 +263,6 @@ message is sent, and a catch handles dropped connections. Removed the old /chat 
 _turn.html. SSE headers Cache-Control:no-cache + X-Accel-Buffering:no to avoid proxy
 buffering. Verified live locally: first token immediate, chunks stream continuously, done
 event fires, out-of-scope handling works mid-stream, markdown preserved. ruff+pyright clean,
-32 tests pass. Next: redeploy to Railway + verify streaming in prod.
+32 tests pass. Redeployed to Railway (railway up --detach, ~140s) and VERIFIED streaming
+in prod: live /chat/stream emits incremental `data:{t}` chunks then `done`; a Hampi plan
+streamed token-by-token with its markdown table intact. Shipped. Branch pushed to GitHub.
