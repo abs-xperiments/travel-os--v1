@@ -222,3 +222,26 @@ button and the plan content; markdown table renders in-browser (same path as cha
 the seeded row. ruff + pyright clean, 32 offline tests pass. NOTE for deploy: if a true
 one-click server-generated .pdf is ever wanted, revisit with a pure-python lib. Next: module 8
 — Railway DEPLOY (the V1 finish line).
+
+## 2026-06-01 21:10 — Module 8: DEPLOYED TO RAILWAY — V1 IS LIVE 🚀
+TripOS V1 is live at https://tripos-web-production-4f1c.up.railway.app (gated by APP_PASSWORD).
+Steps: pointed `railway.toml` startCommand at `fastapi run src/agent/tripos_web.py`; created
+Railway project `tripos-v1` + service `tripos-web` via `railway add --service tripos-web -v ...`
+with the three needed secrets (OPENROUTER_API_KEY, DATABASE_URL, APP_PASSWORD) pulled from
+.env — only those three are required (config.py: openrouter required; db_url/app_password
+optional in config but needed by our app; FAL_KEY/R2_* unused by TripOS so skipped). `railway up
+--detach` built the Dockerfile image; `railway domain` assigned the URL.
+VERIFIED IN PROD: gate 303 → login 303 → authed home 200 → a live /chat planned a full Coorg
+trip with our exact catalog data + budget range and "estimates" labeling. This confirms the
+seed JSON + templates ARE in the deployed image (uv's editable install resolves them under
+/app/src), and OpenRouter + Neon both work in the container — my earlier worry about data files
+missing from the image was unfounded.
+Notes/gotchas: Railway's backboard GraphQL API timed out twice (railway init, railway add) but
+the operations LANDED server-side (project/service + vars confirmed via `railway list` and
+`railway variables --json` keys) — retry/verify, don't assume failure. Already logged in as
+abirami.moa@gmail.com so no interactive login was needed. railway.toml committed.
+ALL 8 STEPS DONE — V1 SHIPPED. Work is on branch `build/tripos-v1` (main untouched; can merge/
+push to GitHub when ready). Day-2: `railway up` to redeploy, `railway logs` to debug,
+`railway variables --set` to change secrets. Possible next: spot-check the 23 AI-drafted
+destination datasets; distance-aware transport/budget (transport composer); runtime fallback
+for un-seeded destinations; V2 (driver quotes/bookings/payments).
