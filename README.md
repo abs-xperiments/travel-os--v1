@@ -6,16 +6,23 @@ An opinionated, batteries-included starter for building AI agents — from simpl
 
 ---
 
-## ✏️ Your project
+## ✏️ Your project — TripOS
 
-> Replace this section with *your* goal (this is stage 2 of the method — see below).
-> Keep it to a few sentences a friend would understand.
+**What I'm building:** TripOS, an AI travel-planning consultant you talk to — it turns a
+few sentences about your trip into a complete, *realistic*, budget-tracked, day-by-day
+itinerary for South Indian hill stations, which you can reshape just by talking, then
+save, export, and share.
 
-**What I'm building:** _(one sentence)_
+**Who it's for and why:** Indian leisure travelers (like Priya, planning for her family
+including elderly parents) who don't want to lose hours to YouTube, blogs, and booking
+sites — and don't want to pay a travel agency's 15–40% markup for a rigid package.
 
-**Who it's for and why:** _(a sentence or two)_
-
-**What "done" looks like:** _(what can the user do that they couldn't before?)_
+**What "done" looks like (V1):** A person describes their trip in plain language and gets
+a feasible, *explained*, fully-costed itinerary — one that refuses to be unrealistic,
+flags season/crowd/weather/fatigue, tracks the budget live, and can be modified
+conversationally. They can save it, export it (PDF / shareable link), and reach it at a
+public URL deployed on Railway. (Real hotel/driver booking, quotes, and payments are
+**V2** — V1 plans and prices are honest AI *estimates*.)
 
 ---
 
