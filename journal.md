@@ -316,4 +316,6 @@ Issue 3 (India-only copy): updated GREETING to "...anywhere in the world 🌍", 
 and added example-prompt chips (domestic + international: Kerala/Japan/Bali/Vietnam/Europe/
 family) shown on a fresh chat; clicking a chip sends it. Copy/positioning only — no layout
 redesign. (System prompt already said worldwide since Phase 1D.)
-32 offline tests pass, ruff+pyright clean. Next: deploy + verify in prod.
+32 offline tests pass, ruff+pyright clean. DEPLOYED + VERIFIED IN PROD: new greeting
+"anywhere in the world" + example chips live; a live stream emitted 1 status event then the
+plan in one turn with a done event. All 3 issues fixed on the live URL.
