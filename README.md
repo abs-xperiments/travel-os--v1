@@ -10,7 +10,7 @@ An opinionated, batteries-included starter for building AI agents — from simpl
 
 **What I'm building:** TripOS, an AI travel-planning consultant you talk to — it turns a
 few sentences about your trip into a complete, *realistic*, budget-tracked, day-by-day
-itinerary for South Indian hill stations, which you can reshape just by talking, then
+itinerary for destinations across India, which you can reshape just by talking, then
 save, export, and share.
 
 **Who it's for and why:** Indian leisure travelers (like Priya, planning for her family

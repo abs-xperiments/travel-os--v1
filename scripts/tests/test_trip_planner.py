@@ -36,7 +36,7 @@ def test_plan_trip_assembles_a_complete_plan():
 
 def test_unknown_destination_raises_clearly():
     brief = _priya_brief()
-    brief.destination_id = "goa"
+    brief.destination_id = "paris"  # out of scope: TripOS plans within India only
     with pytest.raises(ValueError, match="covers"):
         trip_planner.plan_trip(brief)
 

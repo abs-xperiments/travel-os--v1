@@ -139,3 +139,30 @@ agent labeled prices as estimates and said it books nothing (failure_modes rules
 Learned: register tools via `agent.tool_plain(func)` so the funcs stay importable/testable
 without paying for a model call. Next: module 5 — the web UI (FastAPI + HTMX chat + review
 screen, password-gated) so it's usable in a browser, then persistence/export, then deploy.
+
+## 2026-06-01 18:40 — SCOPE CHANGE: destination-agnostic, nationwide (India)
+User reversed the earlier "one region" scope: TripOS must be **destination-agnostic** and
+plan for any valid Indian destination, with knowledge **data-driven and extensible** (adding
+a destination must need NO code change). Good news: our planning engine was already agnostic
+— `attraction_selector`/`itinerary_builder`/`feasibility`/`budget`/`trip_planner` have zero
+destination-specific logic; the catalog globs every `*.json`, so a destination IS just data.
+Work done:
+- De-hardcoded the only two region mentions (agent system prompt + CLI greeting → "across
+  India", rely on `list_destinations`). Updated scope lines in README/policy/user_stories/
+  failure_modes/scenarios (Munnar/Priya remain as *illustrative* examples per the user).
+- Ran a **Workflow** (user invoked "workflow"): 23 agents (Sonnet) in parallel, one per
+  destination across all regions (N/S/E/W/Central + Andaman), each returning a schema-
+  validated `Destination` (6–11 real attractions, hidden gems, honest suitability). ~3 min,
+  ~201k tokens. Imported all 23 via `Destination.model_validate` → one JSON file each in
+  `destination_catalog/data/`. Catalog now = **24 destinations**.
+- Smoke-tested planning (no LLM) for Goa/Leh-Ladakh/Jaipur/Darjeeling — all feasible; Leh
+  seniors plan correctly drops high-altitude/strenuous stops. Fixed 2 tests that used "goa"
+  as the out-of-scope example (now covered) → switched to "paris" (international = out of
+  scope; TripOS is India-only). 32 tests pass, ruff + pyright clean.
+HONESTY NOTES: the seed data for the 23 new destinations is AI-drafted (reviewable JSON, not
+runtime hallucination) — durations/ratings are estimates and should be spot-checked over
+time. Transport/budget baselines are still a FLAT placeholder (Delhi→Ladakh costs the same
+as Delhi→Goa today) — distance-aware costs come with the transport composer module.
+OPEN OPTION: a runtime provider that auto-generates+caches data for a destination not yet in
+the catalog (truly "any destination" without pre-seeding). Deferred; current design already
+satisfies "add a destination = add data, no code change". Next: module 5 — the web UI.

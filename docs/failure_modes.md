@@ -13,7 +13,7 @@ how TripOS should fail **gracefully and honestly** instead.
 | Model **invents** a price, opening hour, or attraction | high / bad | Prefer the curated seed data. For anything not in it, label it an **estimate** and give a **range** — never state a fabricated exact fact as certain. |
 | User input is **vague** ("plan me a trip somewhere nice") | high / mild | Ask **one** focused follow-up at a time (start city? budget?) — never dump a form. |
 | User asks for an **impossible** plan (15 attractions in 2 days; ₹8k for a 5-day family trip) | medium / bad | Say plainly it's unrealistic, show the time/budget math, and offer concrete alternatives. Never silently produce a fake-feasible plan. |
-| User picks an **out-of-scope destination** (Goa, Paris) | medium / mild | Honestly say V1 covers the 5 hill stations; offer the closest fit or note it's coming. Don't hallucinate rich data for unsupported places. |
+| User picks an **out-of-scope destination** (e.g. international like Paris, or an Indian town not yet in the catalog) | medium / mild | Honestly say it isn't in the catalog (or is out of scope); offer the closest covered option. Don't hallucinate rich data for unsupported places. |
 | **Weather API down** or no data for the dates | medium / mild | Fall back to seasonal norms, say live weather is unavailable, and continue — don't block the plan. |
 | LLM is **slow / times out** | medium / mild | Keep the UI responsive (poll a status fragment), set a timeout, offer a friendly retry. |
 | **Cost runaway** — too many LLM calls per trip | medium / bad | Cheap tier while gathering info, smarter tier only for the final itinerary; gate the public URL so strangers can't run up the bill. |

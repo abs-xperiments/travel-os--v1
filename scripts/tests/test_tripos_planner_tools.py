@@ -45,7 +45,7 @@ def test_build_plan_rejects_unknown_group_type():
 
 def test_build_plan_rejects_out_of_scope_destination():
     out = build_plan(
-        destination_id="goa",
+        destination_id="paris",
         start_city="Chennai",
         days=3,
         group_type="couple",

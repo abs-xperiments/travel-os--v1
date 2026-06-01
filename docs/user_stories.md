@@ -31,5 +31,5 @@ whole trip and re-totals the budget in front of me.
 - Driver / guide / hotel / restaurant / activity **marketplaces** and partner dashboards (the "send to drivers → quotes → book" flow is **V2**).
 - Per-user account logins (V1 sits behind one shared password gate).
 - Real-time inventory / live availability.
-- Destinations outside the V1 region (Kerala + Tamil Nadu hill stations).
+- Destinations not yet in the catalog (it's data-driven and grows across India); international trips are out of scope.
 - A native mobile app.

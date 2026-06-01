@@ -14,7 +14,7 @@ from agent.agents.tripos_planner import planner_agent
 from agent.logging_setup import setup_logging
 
 GREETING = (
-    "✈️  TripOS — your AI travel planner (South Indian hill stations)\n"
+    "✈️  TripOS — your AI travel planner (destinations across India)\n"
     "Tell me about your trip, or say 'discover' if you don't know where to go.\n"
     "(type 'quit' to exit)\n"
 )
