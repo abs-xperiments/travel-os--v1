@@ -266,3 +266,28 @@ event fires, out-of-scope handling works mid-stream, markdown preserved. ruff+py
 32 tests pass. Redeployed to Railway (railway up --detach, ~140s) and VERIFIED streaming
 in prod: live /chat/stream emits incremental `data:{t}` chunks then `done`; a Hampi plan
 streamed token-by-token with its markdown table intact. Shipped. Branch pushed to GitHub.
+
+## 2026-06-02 — V2 Phase 1: provider-agnostic retrieval (plan ANY destination)
+Big architecture step (design in docs/V2_ARCHITECTURE.md, from a 9-agent workflow). User
+mandate: the catalog is a CACHE, never a gatekeeper — no "supported destinations" concept.
+Built in 4 tested, committed increments, each green:
+- 1A: `provider_interfaces` (DestinationProvider Protocol + slugify), `provider_registry`
+  (swappable, priority-ordered — the seam for future paid providers), `providers`
+  (CatalogDestinationProvider = the 24 curated places as a fast cache provider). +Coordinates.
+- 1B: `knowledge_cache` (Neon table `tripos_destination_cache`, migration 002; get(fresh)/put;
+  wired into web lifespan) — retrieved places cached ~60d so we fetch once.
+- 1C: retrieval core — `providers/geocoding.py` (Nominatim/OSM verifies existence + coords),
+  `providers/destination_retrieval.py` (WebDestinationProvider: verify -> research()/Perplexity
+  -> extract a structured Destination with Sonnet), `destination_intelligence.resolve()`
+  (cache -> catalog -> web; None ONLY if unidentifiable). Destination gained optional
+  country/coordinates. Verified live: Pondicherry -> 9 real attractions + cached; nonsense -> None.
+- 1D: removed the gatekeeper — `trip_planner.plan_trip(brief, destination)` takes an injected
+  Destination (no catalog lookup, no "unknown destination" raise); agent `build_plan` -> async
+  `build_trip` that resolves ANY place then plans it; system prompt no longer claims a fixed
+  list. Verified live: streaming a Pondicherry plan via the async tool + SSE = 255 chunks. The
+  roadmap's riskiest item (async tool boundary under streaming) works.
+KEY LEARNING: pydantic-ai `tool_plain` accepts ASYNC functions, so build_trip can `await`
+retrieval and SSE streaming (agent.iter) still works. Phase 1 = 38 tests (32 offline + 6
+integration), ruff+pyright clean. Next: deploy Phase 1 to Railway + verify a non-catalog
+destination streams in prod. Then Phase 2 (stay-first + accommodation/restaurant/weather
+intelligence behind the same provider interfaces) and Phase 3 (circuits + premium adapters).
