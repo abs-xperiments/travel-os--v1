@@ -153,6 +153,13 @@ class Itinerary(BaseModel):
     day_plans: list[DayPlan]
 
 
+class Coordinates(BaseModel):
+    """A geographic point — used to verify a place exists and to anchor weather/map lookups."""
+
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
 class TripPlan(BaseModel):
     """The complete proposal — the aggregate that ties every module's output together."""
 
