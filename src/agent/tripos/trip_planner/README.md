@@ -12,8 +12,8 @@ agent talks to the traveler and, once it knows what they want, calls `plan_trip(
 so the AI never has to do the planning maths itself (which it would get wrong).
 
 ## What it does, step by step
-1. Looks up the destination in `destination_catalog` (and refuses, clearly, if it's not one
-   TripOS covers).
+1. Receives an already-resolved `Destination` (from `destination_intelligence` — catalog OR
+   web retrieval). It does not look anything up and never refuses: it plans whatever it's given.
 2. Asks `attraction_selector` for the right stops in the right order.
 3. Asks `itinerary_builder` to spread them across the days.
 4. Estimates the cost via `budget_estimator`.
@@ -32,8 +32,9 @@ later step. The numbers are clearly named and all in one place so they're easy t
 - **Days look unbalanced:** that's `itinerary_builder`.
 - **The cost seems off:** check the placeholder baselines at the top of this file (until the
   composer modules replace them).
-- **"Unknown destination" error:** the brief's `destination_id` isn't in the catalog — correct
-  by design; the agent should pick a covered destination.
+- **A place can't be planned at all:** that's decided upstream — `destination_intelligence`
+  returns None only when a place can't be identified; the agent handles that. trip_planner
+  itself always plans the destination it's handed.
 - **Run it in isolation:** `uv run pytest scripts/tests/test_trip_planner.py` (no AI, no keys).
 
 ## What it deliberately does NOT do

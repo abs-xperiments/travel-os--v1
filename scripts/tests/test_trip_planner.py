@@ -1,12 +1,14 @@
-"""Offline test: trip_planner assembles a complete TripPlan. No credentials needed.
+"""Offline test: trip_planner assembles a complete TripPlan from an injected Destination.
 
-uv run pytest scripts/tests/test_trip_planner.py
+No credentials needed — the destination is taken from the catalog and passed in (the same way
+destination_intelligence would inject a retrieved one).
+
+    uv run pytest scripts/tests/test_trip_planner.py
 """
 
 from __future__ import annotations
 
-import pytest
-
+from agent.tripos import destination_catalog as catalog
 from agent.tripos import trip_planner
 from agent.tripos.models import GroupType, Pace, TravelStyle, TripBrief
 
@@ -23,8 +25,10 @@ def _priya_brief() -> TripBrief:
     )
 
 
-def test_plan_trip_assembles_a_complete_plan():
-    plan = trip_planner.plan_trip(_priya_brief())
+def test_plan_trip_assembles_a_complete_plan_from_injected_destination():
+    munnar = catalog.get_destination("munnar")
+    assert munnar is not None
+    plan = trip_planner.plan_trip(_priya_brief(), munnar)
     assert plan.destination_id == "munnar"
     assert len(plan.itinerary.day_plans) == 5
     assert plan.attractions  # picked some stops
@@ -34,15 +38,11 @@ def test_plan_trip_assembles_a_complete_plan():
     assert all(a.suitable_for_seniors for a in plan.attractions)
 
 
-def test_unknown_destination_raises_clearly():
-    brief = _priya_brief()
-    brief.destination_id = "paris"  # out of scope: TripOS plans within India only
-    with pytest.raises(ValueError, match="covers"):
-        trip_planner.plan_trip(brief)
-
-
-def test_missing_destination_raises():
-    brief = _priya_brief()
-    brief.destination_id = None
-    with pytest.raises(ValueError, match="required"):
-        trip_planner.plan_trip(brief)
+def test_plan_trip_plans_whatever_destination_it_is_given():
+    # trip_planner has no concept of "supported" — any Destination is planned (here, a
+    # different catalog entry, standing in for a web-retrieved one).
+    goa = catalog.get_destination("goa")
+    assert goa is not None
+    plan = trip_planner.plan_trip(_priya_brief(), goa)
+    assert plan.destination_id == "goa"
+    assert plan.attractions

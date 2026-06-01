@@ -24,40 +24,43 @@ from pydantic_ai.messages import (
 
 from agent.services.llm import build_model
 from agent.tripos import destination_catalog as catalog
-from agent.tripos import trip_planner
-from agent.tripos.models import GroupType, Pace, TravelStyle, TripBrief, TripPlan
+from agent.tripos import destination_intelligence, trip_planner
+from agent.tripos.models import Destination, GroupType, Pace, TravelStyle, TripBrief, TripPlan
+from agent.tripos.provider_interfaces import slugify
 
 SYSTEM_PROMPT = """\
-You are TripOS, an expert, honest travel consultant for trips across India.
+You are TripOS, an expert, honest travel consultant. You can plan a trip to ANY real
+destination in the world — a city, town, village, national park, island, or region.
 You feel like texting a sharp, friendly guide — warm, concise, never a form.
 
 How you work:
 - Greet, and offer two ways to start: "Discover My Trip" (they don't know where) or
   "Plan a Destination" (they do).
 - Gather only what's missing, ONE question at a time (never a wall of questions):
-  start city, number of days, who's travelling (group), budget, interests, pace.
-- You ONLY cover the destinations returned by the `list_destinations` tool — this list is
-  data-driven and grows over time, so always check it rather than assuming. If the user asks
-  for a destination that isn't in the list, say so honestly and offer the closest covered
-  option. If they don't know where to go, use `list_destinations` and recommend 2–3 that fit
-  their budget/days/interests, each with a one-line reason.
-- When you know destination + days + group + interests + budget, call `build_plan` to build
-  the actual day-by-day plan and budget. NEVER invent attractions, durations, or prices —
-  always get them from the tools.
-- Present the plan clearly: the day-by-day, the budget as a RANGE (it's an estimate, not a
-  bookable price — real quotes come later), and the feasibility verdict. Give a one-line
+  destination (if they have one), start city, number of days, who's travelling (group),
+  budget, interests, pace.
+- You are NOT limited to a fixed list of places. To build a plan, call `build_trip` with the
+  destination NAME (any place) plus the trip details. If the traveler doesn't know where to
+  go, you may call `list_destinations` for a few popular EXAMPLE ideas to suggest — but those
+  are only examples, not a limit; you can plan anywhere.
+- NEVER invent attractions, durations, or prices — always get them from `build_trip`.
+- Present the plan clearly: the day-by-day, the budget as a RANGE (an estimate, not a
+  bookable price — real quotes come later), and the feasibility verdict, with a one-line
   "why" for the destination.
-- If `build_plan` returns `feasible: false`, tell the user plainly and pass on its fix
-  suggestions. If it returns an `error`, relay it honestly and adjust.
+- If `build_trip` returns `feasible: false`, say so plainly and pass on its fix suggestions.
+- If `build_trip` returns an `error` that the place couldn't be found, the name was likely
+  misspelled or too vague — ask the user to check the spelling or name a nearby well-known
+  town. That is the ONLY case where a destination can't be planned.
 
 Hard rules: never claim anything is booked (TripOS books nothing yet); label prices as
 estimates; if unsure, say so. Keep replies short and skimmable."""
 
 
 def list_destinations() -> list[dict]:
-    """List the destinations TripOS can plan (its V1 scope).
+    """A few popular EXAMPLE destinations to suggest when a traveler doesn't know where to go.
 
-    Use this for discovery, and to check a destination is supported before planning.
+    This is NOT the set of places TripOS can plan — it can plan anywhere via `build_trip`.
+    These are just curated suggestions with rich detail.
     """
     return [
         {
@@ -71,11 +74,10 @@ def list_destinations() -> list[dict]:
     ]
 
 
-def _compact_plan(plan: TripPlan) -> dict:
+def _compact_plan(plan: TripPlan, destination: Destination) -> dict:
     """A small, token-light view of a TripPlan for the model to read and present."""
-    destination = catalog.get_destination(plan.destination_id)
     return {
-        "destination": destination.name if destination else plan.destination_id,
+        "destination": destination.name,
         "days": plan.itinerary.days,
         "feasible": plan.feasibility.realistic,
         "feasibility_reasons": plan.feasibility.reasons,
@@ -99,8 +101,8 @@ def _compact_plan(plan: TripPlan) -> dict:
     }
 
 
-def build_plan(
-    destination_id: str,
+async def build_trip(
+    destination: str,
     start_city: str,
     days: int,
     group_type: str,
@@ -108,10 +110,11 @@ def build_plan(
     budget: float,
     pace: str = "balanced",
 ) -> dict:
-    """Build a complete day-by-day plan + budget for ONE destination.
+    """Build a complete day-by-day plan + budget for a destination — ANY real place worldwide.
 
-    Call this once you know the destination and the traveler's days, group, interests and
-    budget. Returns the plan, or an `error` string you should relay and then fix.
+    Call this once you know the destination NAME and the traveler's days, group, interests and
+    budget. It resolves the place (curated catalog or live web retrieval), then plans it.
+    Returns the plan, or an `error` string you should relay and then fix.
 
     Allowed values:
     - group_type: solo, couple, friends, family, family_with_children, family_with_seniors
@@ -127,23 +130,26 @@ def build_plan(
             group_type=GroupType(group_type),
             interests=[TravelStyle(i) for i in interests],
             pace=Pace(pace),
-            destination_id=destination_id,
+            destination_id=slugify(destination),
         )
     except (ValueError, ValidationError) as exc:
         return {"error": f"Invalid input: {exc}"}
 
-    try:
-        plan = trip_planner.plan_trip(brief)
-    except ValueError as exc:
-        return {"error": str(exc)}
+    resolved = await destination_intelligence.resolve(destination, brief)
+    if resolved is None:
+        return {
+            "error": f"I couldn't find a place called {destination!r}. "
+            "Could you check the spelling, or name a nearby well-known town?"
+        }
 
-    return _compact_plan(plan)
+    plan = trip_planner.plan_trip(brief, resolved)
+    return _compact_plan(plan, resolved)
 
 
 # balanced = Claude Sonnet (good at tool use); cheap enough for a chat. See services/llm.py.
 planner_agent = Agent(build_model("balanced"), system_prompt=SYSTEM_PROMPT)
 planner_agent.tool_plain(list_destinations)
-planner_agent.tool_plain(build_plan)
+planner_agent.tool_plain(build_trip)
 
 
 class StreamPiece(BaseModel):
@@ -159,7 +165,7 @@ async def stream_reply(
 ) -> AsyncIterator[StreamPiece]:
     """Stream the planner's reply token-by-token — the preamble AND the post-tool answer.
 
-    We use `agent.iter()` (not `run_stream()`): our agent calls the `build_plan` tool, and
+    We use `agent.iter()` (not `run_stream()`): our agent calls the `build_trip` tool, and
     `run_stream()` alone would only stream the first model turn (the preamble), missing the
     actual plan the model writes *after* the tool returns. iterating the run lets us stream
     text from every model step. Ends with one kind="done" piece carrying the serialized
