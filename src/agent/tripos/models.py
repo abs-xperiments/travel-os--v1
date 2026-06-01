@@ -151,3 +151,14 @@ class Itinerary(BaseModel):
     destination_id: str
     days: int
     day_plans: list[DayPlan]
+
+
+class TripPlan(BaseModel):
+    """The complete proposal — the aggregate that ties every module's output together."""
+
+    brief: TripBrief
+    destination_id: str
+    attractions: list[Attraction]
+    itinerary: Itinerary
+    budget: BudgetEstimate
+    feasibility: FeasibilityResult

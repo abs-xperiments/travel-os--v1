@@ -122,3 +122,20 @@ unit tests passed, but composing the modules and *looking at the output* found t
 issue — keep doing smoke runs. 25 tests pass, ruff + pyright clean. The deterministic core
 now produces a full Munnar day-by-day. Next: module 4 — the AI `planner` (an Agent that
 calls these as tools) + a minimal chat web screen = first end-to-end with the LLM.
+
+## 2026-06-01 18:10 — Module 4: the AI planner agent — FIRST LLM END-TO-END WORKS
+Split module 4 in two: (1) `tripos/trip_planner` — a deterministic `plan_trip(brief)` that
+runs catalog→select→itinerary→budget→feasibility into one `TripPlan` aggregate (testable
+with no LLM); (2) `agents/tripos_planner.py` — the pydantic-ai Agent (build_model("balanced")
+= Sonnet) whose system prompt is the condensed policy.md, exposing `list_destinations` and
+`build_plan` as `tool_plain` tools. Rewrote `main.py` into a chat REPL (`uv run agent`).
+Budget uses PLACEHOLDER baselines in trip_planner (clearly flagged; transport/accommodation/
+food composer modules will replace them). Added `TripPlan` to models.
+**Live smoke run (Priya's request) verified the core claim:** the LLM called `build_plan`,
+and the returned itinerary + budget range (₹27,075–₹36,925) exactly match our modules'
+output — no hallucinated stops or prices. Seniors filter held live (Eravikulam excluded);
+agent labeled prices as estimates and said it books nothing (failure_modes rules honored).
+32 offline tests pass (agent tools tested directly, no API spend), ruff + pyright clean.
+Learned: register tools via `agent.tool_plain(func)` so the funcs stay importable/testable
+without paying for a model call. Next: module 5 — the web UI (FastAPI + HTMX chat + review
+screen, password-gated) so it's usable in a browser, then persistence/export, then deploy.
