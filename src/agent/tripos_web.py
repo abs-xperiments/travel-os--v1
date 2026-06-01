@@ -31,7 +31,7 @@ from agent.agents.tripos_planner import stream_reply
 from agent.config import get_settings
 from agent.logging_setup import setup_logging
 from agent.services import db
-from agent.tripos import trip_store
+from agent.tripos import knowledge_cache, trip_store
 
 HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=str(HERE / "templates"))
@@ -50,7 +50,7 @@ GREETING = (
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     setup_logging()
-    applied = await trip_store.init_db()
+    applied = await trip_store.init_db() + await knowledge_cache.init_db()
     if applied:
         logger.info("applied migrations: {}", applied)
     yield

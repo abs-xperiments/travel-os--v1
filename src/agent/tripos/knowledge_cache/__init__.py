@@ -1,0 +1,48 @@
+"""knowledge_cache — remember retrieved destinations in Neon so we don't re-fetch them.
+
+Retrieving a destination from the web (Perplexity + extraction) costs money and takes a few
+seconds. Stable travel facts barely change, so we cache the resulting `Destination` here and
+reuse it until it goes stale (default ~60 days). The curated catalog is the *zero-cost* cache;
+this is the cache for *everywhere else on Earth*.
+
+See README.md in this folder for a plain-English explanation and debugging guide.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from agent.services import db
+from agent.tripos.models import Destination
+
+MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+DEFAULT_MAX_AGE_DAYS = 60
+
+
+async def init_db() -> list[str]:
+    """Create the cache table on startup (runs migrations once). Returns files applied."""
+    return await db.apply_migrations(MIGRATIONS_DIR)
+
+
+async def get(destination_id: str, max_age_days: int = DEFAULT_MAX_AGE_DAYS) -> Destination | None:
+    """Return a cached destination if present AND fresher than max_age_days, else None."""
+    row = await db.fetchrow(
+        "SELECT knowledge FROM tripos_destination_cache "
+        "WHERE id = $1 AND fetched_at > now() - make_interval(days => $2::int)",
+        destination_id,
+        max_age_days,
+    )
+    return Destination.model_validate_json(row["knowledge"]) if row else None
+
+
+async def put(destination: Destination) -> None:
+    """Store (or refresh) a retrieved destination, stamped with the current time."""
+    await db.execute(
+        "INSERT INTO tripos_destination_cache (id, name, knowledge, fetched_at) "
+        "VALUES ($1, $2, $3, now()) "
+        "ON CONFLICT (id) DO UPDATE SET "
+        "name = EXCLUDED.name, knowledge = EXCLUDED.knowledge, fetched_at = now()",
+        destination.id,
+        destination.name,
+        destination.model_dump_json(),
+    )
