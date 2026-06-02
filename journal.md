@@ -333,3 +333,5 @@ total when known; _compact_plan exposes per_person_budget (primary) + travelers 
 Updated budget tests. Verified live: Munnar 3d family budget₹15k/pp, travelers 4 → per-person
 est ₹16,100 (range 13,755–18,445), group total ₹64,400 (=×4). 35 offline tests pass, ruff+
 pyright clean. Next: deploy + verify in prod.
+
+VERIFIED IN PROD: a Munnar plan rendered a budget table "Per Person | Group of 4" — per-person primary + group total, live.
