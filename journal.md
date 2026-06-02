@@ -370,3 +370,16 @@ ruff+pyright clean. SCOPED: auto-building the whole multi-stop circuit in one st
 enrich every leg → stitched multi-leg itinerary + combined budget) is deferred — it's ~8 web
 calls per build (cost/latency in the stream), so for now circuits are recommended and the user
 plans a chosen base via build_trip. Next: deploy + verify; then (optional) the multi-leg auto-build.
+
+## 2026-06-02 — Conversational UX: hide all internal/system language
+Consumer-facing voice fix (prompt-only; no architecture change). Restructured the agent
+system prompt into a strict VOICE section (what the traveler sees) + a HOW-YOU-OPERATE section
+(internal, never revealed). VOICE forbids any mention of tools/functions/parameters/"required
+details"/"validation"/"the planner/system/workflow"/retrieval/DB/APIs, and gives explicit
+bad→good phrasing swaps ("I can't infer your budget" → "What's your approximate per-person
+budget?"; "I won't make up numbers" → just ask). Missing info → warm question or a short
+bullet list, never a status update or a numbered form. Removed literal tool names from the
+prompt body (described behavior instead) to cut leakage; the model still calls the tools via
+their schemas. Synced docs/policy.md (Tone & style → Voice rule) and the module docstring.
+Verified locally: a bare "I'd like to plan a trip" → a friendly bulleted set of questions with
+ZERO forbidden terms. 37 offline tests pass, ruff+pyright clean. Next: deploy + verify in prod.
