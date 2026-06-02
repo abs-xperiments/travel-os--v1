@@ -104,12 +104,14 @@ class BudgetBreakdown(BaseModel):
 
 
 class BudgetEstimate(BaseModel):
-    """A trip's total cost as a single figure plus an honest likely range."""
+    """A trip's cost estimate. The PER-PERSON figure is primary; the group total is derived."""
 
-    by_category: dict[str, float]
-    total: float
-    low: float = Field(description="Lower end of the likely range (₹).")
-    high: float = Field(description="Upper end of the likely range (₹).")
+    by_category: dict[str, float] = Field(description="Per-person cost by category (₹).")
+    per_person_total: float = Field(description="Primary figure: estimated cost per traveler (₹).")
+    per_person_low: float = Field(description="Lower end of the per-person range (₹).")
+    per_person_high: float = Field(description="Upper end of the per-person range (₹).")
+    travelers: int = Field(default=1, ge=1)
+    group_total: float = Field(description="per_person_total × travelers (₹).")
     confidence: int = Field(ge=0, le=100, description="How tight the estimate is, 0–100.")
     notes: list[str] = Field(default_factory=list)
 
@@ -146,12 +148,15 @@ class TripBrief(BaseModel):
 
     start_city: str
     days: int = Field(gt=0)
-    budget: float = Field(gt=0)
+    budget: float = Field(gt=0, description="PER-PERSON budget in ₹ (the primary planning figure).")
     group_type: GroupType
     interests: list[TravelStyle]
     pace: Pace = Pace.balanced
     food_pref: FoodPref = FoodPref.no_preference
     destination_id: str | None = None
+    travelers: int | None = Field(
+        default=None, ge=1, description="Traveler count if the user gave one; else inferred."
+    )
 
 
 class DayPlan(BaseModel):

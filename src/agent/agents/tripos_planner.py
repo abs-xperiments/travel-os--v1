@@ -40,8 +40,9 @@ How you work:
 - Greet, and offer two ways to start: "Discover My Trip" (they don't know where) or
   "Plan a Destination" (they do).
 - Gather only what's missing, ONE question at a time (never a wall of questions):
-  destination (if they have one), start city, number of days, who's travelling (group),
-  budget, interests, pace.
+  destination (if they have one), start city, number of days, who's travelling (group) and
+  how many travelers, the PER-PERSON budget (ALWAYS ask for budget per traveler, never total),
+  interests, pace.
 - You are NOT limited to a fixed list of places. To build a plan, call `build_trip` with the
   destination NAME (any place) plus the trip details. If the traveler doesn't know where to
   go, you may call `list_destinations` for a few popular EXAMPLE ideas to suggest — but those
@@ -52,9 +53,10 @@ How you work:
   interests); or (b) call `build_trip` and present the plan. The moment you have all required
   details, call `build_trip` in THIS turn. NEVER reply that you'll "put it together" / "build
   it now" / "prepare that" and then stop without calling `build_trip` — that strands the user.
-- Present the plan clearly: the day-by-day, the budget as a RANGE (an estimate, not a
-  bookable price — real quotes come later), and the feasibility verdict, with a one-line
-  "why" for the destination.
+- Present the plan clearly: the day-by-day; the budget as a PER-PERSON range, clearly LABELLED
+  "per person" (e.g. "Estimated per-person budget: ₹X–₹Y") — it's an estimate, not a bookable
+  price; when the traveler count is known, ALSO show the total group cost; and the feasibility
+  verdict, with a one-line "why" for the destination. Per-person is always the primary figure.
 - If `build_trip` returns `feasible: false`, say so plainly and pass on its fix suggestions.
 - If `build_trip` returns an `error` that the place couldn't be found, the name was likely
   misspelled or too vague — ask the user to check the spelling or name a nearby well-known
@@ -90,13 +92,16 @@ def _compact_plan(plan: TripPlan, destination: Destination) -> dict:
         "feasible": plan.feasibility.realistic,
         "feasibility_reasons": plan.feasibility.reasons,
         "feasibility_suggestions": plan.feasibility.suggestions,
-        "budget": {
-            "total": plan.budget.total,
-            "low": plan.budget.low,
-            "high": plan.budget.high,
+        "currency": "INR",
+        "per_person_budget": {  # PRIMARY figure — present this, labelled "per person"
+            "estimate": plan.budget.per_person_total,
+            "low": plan.budget.per_person_low,
+            "high": plan.budget.per_person_high,
             "confidence": plan.budget.confidence,
-            "notes": plan.budget.notes,
         },
+        "travelers": plan.budget.travelers,
+        "group_total_estimate": plan.budget.group_total,  # per_person × travelers
+        "budget_notes": plan.budget.notes,
         "itinerary": [
             {
                 "day": d.day,
@@ -117,12 +122,17 @@ async def build_trip(
     interests: list[str],
     budget: float,
     pace: str = "balanced",
+    travelers: int | None = None,
 ) -> dict:
     """Build a complete day-by-day plan + budget for a destination — ANY real place worldwide.
 
     Call this once you know the destination NAME and the traveler's days, group, interests and
     budget. It resolves the place (curated catalog or live web retrieval), then plans it.
     Returns the plan, or an `error` string you should relay and then fix.
+
+    - budget: the PER-PERSON budget in the local currency (per traveler, NOT the group total).
+    - travelers: the number of travelers if known (used to compute the group total); if omitted
+      it's inferred from the group_type.
 
     Allowed values:
     - group_type: solo, couple, friends, family, family_with_children, family_with_seniors
@@ -139,6 +149,7 @@ async def build_trip(
             interests=[TravelStyle(i) for i in interests],
             pace=Pace(pace),
             destination_id=slugify(destination),
+            travelers=travelers,
         )
     except (ValueError, ValidationError) as exc:
         return {"error": f"Invalid input: {exc}"}

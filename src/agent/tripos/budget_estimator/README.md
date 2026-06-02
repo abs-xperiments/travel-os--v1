@@ -1,9 +1,15 @@
 # `budget_estimator` — the "what will this actually cost?" module
 
 ## In one sentence
-This module takes the cost of each part of a trip (travel, stay, food, activities, extras)
-and turns it into one clear total **plus an honest range** — and warns you if the trip is
-heading over budget.
+This module takes the **per-person** cost of each part of a trip (travel, stay, food,
+activities, extras) and turns it into one clear **per-person** estimate **plus an honest
+range**, multiplies by the number of travelers for a **group total**, and warns you if the
+per-person cost is heading over the per-person budget.
+
+## Per-person is primary
+TripOS thinks in **per-person budget** by default (it's how travelers compare trips). The
+per-person figure is the headline; the group total is `per_person × travelers`. Inputs to this
+module (the `BudgetBreakdown`) are per-person, and the budget it checks against is per-person.
 
 ## Why it exists
 Two reasons. First, travelers hate surprises: a single guessed number ("₹32,000") pretends

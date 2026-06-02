@@ -319,3 +319,17 @@ redesign. (System prompt already said worldwide since Phase 1D.)
 32 offline tests pass, ruff+pyright clean. DEPLOYED + VERIFIED IN PROD: new greeting
 "anywhere in the world" + example chips live; a live stream emitted 1 status event then the
 plan in one turn with a done event. All 3 issues fixed on the live URL.
+
+## 2026-06-02 — Per-person budget throughout
+Made per-person the primary budget unit end-to-end. Changes: TripBrief.budget is now PER
+PERSON (+ optional `travelers`); BudgetEstimate redefined to per_person_total / per_person_low
+/ per_person_high + travelers + group_total (was total/low/high). budget_estimator totals
+PER-PERSON, scales by travelers for group_total, and checks the per-person budget. trip_planner
+baselines reworked to per-person (accommodation assumes ~2 share a room) + `traveler_count()`
+(uses brief.travelers else inferred from group: solo1/couple2/friends3/family4). Agent:
+build_trip gains a `travelers` param; system prompt now asks for the PER-PERSON budget + number
+of travelers, and presents budget as a per-person range labelled "per person" plus the group
+total when known; _compact_plan exposes per_person_budget (primary) + travelers + group_total.
+Updated budget tests. Verified live: Munnar 3d family budget₹15k/pp, travelers 4 → per-person
+est ₹16,100 (range 13,755–18,445), group total ₹64,400 (=×4). 35 offline tests pass, ruff+
+pyright clean. Next: deploy + verify in prod.

@@ -32,8 +32,11 @@ def test_plan_trip_assembles_a_complete_plan_from_injected_destination():
     assert plan.destination_id == "munnar"
     assert len(plan.itinerary.day_plans) == 5
     assert plan.attractions  # picked some stops
-    assert plan.budget.low <= plan.budget.total <= plan.budget.high
+    assert plan.budget.per_person_low <= plan.budget.per_person_total <= plan.budget.per_person_high
     assert plan.feasibility.realistic is True
+    # per-person budget is primary; group total = per-person × travelers (seniors group ⇒ 4)
+    assert plan.budget.travelers == 4
+    assert plan.budget.group_total == plan.budget.per_person_total * 4
     # seniors promise holds end-to-end
     assert all(a.suitable_for_seniors for a in plan.attractions)
 
