@@ -11,10 +11,13 @@ See README.md in this folder for a plain-English explanation and debugging guide
 
 from __future__ import annotations
 
+import asyncio
+
 from loguru import logger
 
-from agent.tripos import intelligence_cache, providers
+from agent.tripos import destination_intelligence, intelligence_cache, providers
 from agent.tripos.models import Destination, TripBrief, TripEnrichment
+from agent.tripos.provider_interfaces import slugify
 from agent.tripos.provider_registry import registry
 
 
@@ -41,3 +44,36 @@ async def enrich(destination: Destination, brief: TripBrief) -> TripEnrichment:
     except Exception:
         logger.exception("enrichment failed for {} — planning without it", destination.id)
         return TripEnrichment()
+
+
+def _stub_for(query: str) -> Destination:
+    """A minimal Destination carrying just the identity enrich needs (name + slug cache key),
+    so enrichment can run BEFORE/while resolve() does its heavy retrieval."""
+    return Destination(
+        id=slugify(query),
+        name=query,
+        state="",
+        region="",
+        description="",
+        bases=[],
+        good_for=[],
+        nearest_railhead="",
+        nearest_airport="",
+    )
+
+
+async def resolve_and_enrich(
+    query: str, brief: TripBrief
+) -> tuple[Destination | None, TripEnrichment]:
+    """Resolve a destination AND fetch its enrichment CONCURRENTLY.
+
+    Enrichment is keyed by the destination's slug and its research only needs the name, so it
+    can run in parallel with resolve() instead of waiting for it — roughly halving the wait for
+    an uncached destination, with identical results. (For a misspelled place, resolve returns
+    None and the parallel enrichment is simply discarded.)
+    """
+    resolved, enrichment = await asyncio.gather(
+        destination_intelligence.resolve(query, brief),
+        enrich(_stub_for(query), brief),
+    )
+    return resolved, enrichment

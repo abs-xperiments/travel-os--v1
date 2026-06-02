@@ -403,3 +403,20 @@ Deferred still: deep geo route re-ordering + real inter-city times; premium prov
 Next: deploy + verify in prod.
 
 VERIFIED IN PROD: "Munnar 2n -> Wayanad 1n" -> full multi-stop circuit built leg by leg (both legs, per-leg stays, days 1-3, one per-person budget). Phase 3b live. V2 ROADMAP COMPLETE.
+
+## 2026-06-02 — Perf optimization + planning-gate fix (APPROVED → shipping to prod)
+PERF: bottleneck was sequential I/O (resolve ~50s THEN enrich ~47s; circuit legs one-by-one).
+Fix = concurrency only (no model/quality change): trip_intelligence.resolve_and_enrich runs
+resolve + enrich in parallel (enrich keyed by slug, research needs only the name); circuit_planner
+plans all legs with asyncio.gather and stitches in order. Measured uncached: single 98s→58s
+(~1.7x), 2-leg circuit 154s→53s (~2.9x); deterministic planning was always ~5ms. Quality
+identical (9 stays/8 restaurants/both legs). Doc: docs/PERF_OPTIMIZATION.md. Previewed on a
+separate Railway service (tripos-web-preview); prod untouched until approval.
+GATING FIX: model was asking questions AND calling build_trip in the same turn (guessing missing
+fields). Fix: explicit two-state rule in the prompt (GATHERING vs READY) — ask XOR plan, never
+both; never guess required fields; skip-phrases ("you decide"/"no preference"/…) count as
+answered; final check before building. ALSO refined the dead-end guard so it never force-builds
+on a turn that asked a question (that guard could otherwise cause premature planning). Verified
+locally: "Plan a 15-day trip to Dubai" now ASKS (no plan, no tool call); a complete request
+builds. 37 offline tests pass, ruff+pyright clean. User approved both → commit, push, merge to
+build/tripos-v1 + main, deploy to production.
