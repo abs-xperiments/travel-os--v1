@@ -401,3 +401,5 @@ Munnar(2n)→Wayanad(1n) → days [1,2,3], a stay each leg, per-person ₹22,450
 37 offline tests + integration test_circuit_planner (2 catalog legs). ruff+pyright clean.
 Deferred still: deep geo route re-ordering + real inter-city times; premium provider adapters.
 Next: deploy + verify in prod.
+
+VERIFIED IN PROD: "Munnar 2n -> Wayanad 1n" -> full multi-stop circuit built leg by leg (both legs, per-leg stays, days 1-3, one per-person budget). Phase 3b live. V2 ROADMAP COMPLETE.
