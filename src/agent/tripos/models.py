@@ -219,6 +219,31 @@ class TripEnrichment(BaseModel):
     weather: WeatherInsight | None = None
 
 
+class CircuitLeg(BaseModel):
+    """One stop on a multi-destination circuit, with how many nights to spend there."""
+
+    destination: str = Field(description="Destination name, e.g. 'Munnar'.")
+    nights: int = Field(ge=0, description="Nights here — allocated by how much there is to do.")
+    why: str = Field(description="One line on what this leg adds to the trip.")
+
+
+class Circuit(BaseModel):
+    """A recommended multi-destination route (e.g. Kochi → Munnar → Thekkady → Alleppey)."""
+
+    name: str = Field(description="A short name, e.g. 'Classic Kerala'.")
+    legs: list[CircuitLeg]
+    total_nights: int = Field(ge=0)
+    style: str = Field(description="e.g. first-timer, nature, relaxed, adventure.")
+    est_per_person_budget: float | None = Field(default=None, description="Rough ₹ per person.")
+    why: str = Field(description="Why this route is recommended for the traveler.")
+
+
+class CircuitOptions(BaseModel):
+    """A set of recommended circuits (the structured output of circuit discovery)."""
+
+    circuits: list[Circuit] = Field(default_factory=list)
+
+
 class TripPlan(BaseModel):
     """The complete proposal — the aggregate that ties every module's output together."""
 

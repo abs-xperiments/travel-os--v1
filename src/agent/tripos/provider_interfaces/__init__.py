@@ -17,6 +17,7 @@ from typing import Protocol, runtime_checkable
 
 from agent.tripos.models import (
     Accommodation,
+    Circuit,
     Destination,
     Restaurant,
     TripBrief,
@@ -69,6 +70,15 @@ class RestaurantProvider(Protocol):
     name: str
 
     async def search(self, destination: Destination, brief: TripBrief) -> list[Restaurant]: ...
+
+
+@runtime_checkable
+class CircuitProvider(Protocol):
+    """Recommends multi-destination circuits for a region + trip length (or None)."""
+
+    name: str
+
+    async def discover(self, region: str, nights: int, brief: TripBrief) -> list[Circuit]: ...
 
 
 def slugify(name: str) -> str:

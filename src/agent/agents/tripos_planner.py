@@ -26,8 +26,13 @@ from pydantic_ai.messages import (
 )
 
 from agent.services.llm import build_model
+from agent.tripos import (
+    circuit_discovery,
+    destination_intelligence,
+    trip_intelligence,
+    trip_planner,
+)
 from agent.tripos import destination_catalog as catalog
-from agent.tripos import destination_intelligence, trip_intelligence, trip_planner
 from agent.tripos.models import Destination, GroupType, Pace, TravelStyle, TripBrief, TripPlan
 from agent.tripos.provider_interfaces import slugify
 
@@ -47,6 +52,11 @@ How you work:
   destination NAME (any place) plus the trip details. If the traveler doesn't know where to
   go, you may call `list_destinations` for a few popular EXAMPLE ideas to suggest — but those
   are only examples, not a limit; you can plan anywhere.
+- If the traveler names a REGION or country + days but not a single place (e.g. "6 days in
+  Kerala"), or isn't sure which places to combine, call `discover_circuits` and present 2–4
+  routes (the stops in travel order with nights each, plus why). Let them pick one, then plan a
+  chosen destination from it with `build_trip`. (Auto-building a whole multi-stop circuit is
+  coming soon — for now plan their chosen base.)
 - NEVER invent attractions, durations, or prices — always get them from `build_trip`.
 - CRITICAL — act, don't stall. Each turn, do exactly ONE of: (a) ask ONE clarifying question
   if a REQUIRED detail is still missing (destination, start city, days, group, budget,
@@ -213,9 +223,62 @@ async def build_trip(
     return _compact_plan(plan, resolved)
 
 
+async def discover_circuits(
+    region: str,
+    nights: int,
+    group_type: str,
+    interests: list[str],
+    budget: float,
+    travelers: int | None = None,
+) -> dict:
+    """Suggest multi-destination routes (circuits) for a REGION and trip length.
+
+    Use this when the traveler gives a region + days but no single destination, or doesn't know
+    where to go (e.g. "6 days in Kerala"). Returns 2–4 routes (stops in order + nights each +
+    why), or an `error`. budget is PER-PERSON. After they pick, plan a chosen destination with
+    `build_trip`.
+    """
+    try:
+        brief = TripBrief(
+            start_city="(unspecified)",
+            days=max(nights, 1),
+            budget=budget,
+            group_type=GroupType(group_type),
+            interests=[TravelStyle(i) for i in interests],
+            pace=Pace.balanced,
+            travelers=travelers,
+        )
+    except (ValueError, ValidationError) as exc:
+        return {"error": f"Invalid input: {exc}"}
+
+    circuits = await circuit_discovery.discover(region, nights, brief)
+    if not circuits:
+        return {
+            "error": f"I couldn't find good multi-stop routes for {region!r}. "
+            "Want to name a destination directly?"
+        }
+    return {
+        "region": region,
+        "nights": nights,
+        "circuits": [
+            {
+                "name": c.name,
+                "route": [leg.destination for leg in c.legs],
+                "nights_per_leg": [leg.nights for leg in c.legs],
+                "total_nights": c.total_nights,
+                "style": c.style,
+                "est_per_person_budget": c.est_per_person_budget,
+                "why": c.why,
+            }
+            for c in circuits
+        ],
+    }
+
+
 # balanced = Claude Sonnet (good at tool use); cheap enough for a chat. See services/llm.py.
 planner_agent = Agent(build_model("balanced"), system_prompt=SYSTEM_PROMPT)
 planner_agent.tool_plain(list_destinations)
+planner_agent.tool_plain(discover_circuits)
 planner_agent.tool_plain(build_trip)
 
 

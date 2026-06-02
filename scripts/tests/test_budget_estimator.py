@@ -1,6 +1,6 @@
 """Offline test: the budget_estimator (per-person + group). No credentials needed.
 
-    uv run pytest scripts/tests/test_budget_estimator.py
+uv run pytest scripts/tests/test_budget_estimator.py
 """
 
 from __future__ import annotations

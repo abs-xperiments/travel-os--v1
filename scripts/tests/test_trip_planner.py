@@ -54,12 +54,22 @@ def test_plan_trip_plans_whatever_destination_it_is_given():
 def test_per_person_nightly_prefers_mid_tier_and_halves_room_price():
     stays = [
         Accommodation(
-            name="A", area="x", kind="hotel", tier="mid",
-            price_per_night_low=3000, price_per_night_high=5000, why="w",
+            name="A",
+            area="x",
+            kind="hotel",
+            tier="mid",
+            price_per_night_low=3000,
+            price_per_night_high=5000,
+            why="w",
         ),
         Accommodation(
-            name="B", area="x", kind="resort", tier="premium",
-            price_per_night_low=9000, price_per_night_high=11000, why="w",
+            name="B",
+            area="x",
+            kind="resort",
+            tier="premium",
+            price_per_night_low=9000,
+            price_per_night_high=11000,
+            why="w",
         ),
     ]
     assert trip_planner.per_person_nightly(stays) == 2000  # mid avg room 4000, /2 occupancy

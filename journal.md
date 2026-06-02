@@ -355,3 +355,18 @@ integration test_trip_intelligence), ruff+pyright clean. Honesty: prices/ratings
 estimates, not live bookings (labelled). Next: deploy + verify in prod.
 
 VERIFIED IN PROD: a Coorg plan rendered "Where to Stay (nightly estimates, not live bookings)" + restaurants + weather + per-person budget. Phase 2 live.
+
+## 2026-06-02 — V2 Phase 3 (part 1): Circuit Discovery Engine
+Added "I have N days in <region> — where should I go?" Behind the provider-agnostic pattern:
+models Circuit/CircuitLeg/CircuitOptions; provider_interfaces CircuitProvider;
+providers/circuits.py WebCircuitProvider (cached research()+extract via intelligence_cache key
+"circuit:<region>:<nights>") with INTELLIGENT night allocation (model allocates nights/leg by
+how much there is to do, not evenly); circuit_discovery.discover() (best-effort → [] on
+failure); agent `discover_circuits` tool + prompt rule (region+days but no single place →
+discover_circuits, present 2-4 routes, user picks, then build_trip the chosen base). Verified
+live: Kerala 6 nights → 4 routes incl. "Classic Kerala Family Loop: Kochi→Munnar→Thekkady→
+Alleppey→Kochi" nights [1,2,1,1,1] ~₹30k/pp. 37 offline tests + integration test_circuit_discovery,
+ruff+pyright clean. SCOPED: auto-building the whole multi-stop circuit in one step (resolve +
+enrich every leg → stitched multi-leg itinerary + combined budget) is deferred — it's ~8 web
+calls per build (cost/latency in the stream), so for now circuits are recommended and the user
+plans a chosen base via build_trip. Next: deploy + verify; then (optional) the multi-leg auto-build.
