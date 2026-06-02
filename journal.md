@@ -383,3 +383,5 @@ prompt body (described behavior instead) to cut leakage; the model still calls t
 their schemas. Synced docs/policy.md (Tone & style → Voice rule) and the module docstring.
 Verified locally: a bare "I'd like to plan a trip" → a friendly bulleted set of questions with
 ZERO forbidden terms. 37 offline tests pass, ruff+pyright clean. Next: deploy + verify in prod.
+
+VERIFIED IN PROD: (voice) bare request -> friendly bulleted questions, zero internal jargon; (circuits) "6 days in Kerala" -> 4 named routes with nights. Both live.
