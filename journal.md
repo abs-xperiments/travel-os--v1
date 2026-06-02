@@ -353,3 +353,5 @@ markdown). Registered the 3 providers idempotently per role. Verified live (Munn
 the retrieved rate. 37 offline tests pass (+ stay-override & per_person_nightly tests, +
 integration test_trip_intelligence), ruff+pyright clean. Honesty: prices/ratings are web
 estimates, not live bookings (labelled). Next: deploy + verify in prod.
+
+VERIFIED IN PROD: a Coorg plan rendered "Where to Stay (nightly estimates, not live bookings)" + restaurants + weather + per-person budget. Phase 2 live.
