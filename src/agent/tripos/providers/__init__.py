@@ -38,14 +38,26 @@ class CatalogDestinationProvider:
 
 
 def register_defaults(reg: ProviderRegistry) -> None:
-    """Register the Phase-1 providers (idempotent). Catalog is the fast path; web is the
-    global fallback; Nominatim verifies existence. Premium adapters slot in here later."""
-    if reg.get_all("destination"):  # already registered — do nothing
-        return
-    # imported here (not at module top) to keep the lightweight catalog adapter import cheap
-    from agent.tripos.providers.destination_retrieval import WebDestinationProvider
-    from agent.tripos.providers.geocoding import NominatimGeocoder
+    """Register the default providers (idempotent, per role). Catalog is the fast destination
+    path; web retrieval is the global fallback; Nominatim verifies existence; web intelligence
+    supplies stays/restaurants/weather. Premium adapters (Booking, Google Places, …) slot in
+    here later with no planner change."""
+    if not reg.get_all("destination"):
+        # imported here (not at module top) to keep the lightweight catalog import cheap
+        from agent.tripos.providers.destination_retrieval import WebDestinationProvider
+        from agent.tripos.providers.geocoding import NominatimGeocoder
 
-    reg.register("geocoding", NominatimGeocoder())
-    reg.register("destination", CatalogDestinationProvider(), priority=10)
-    reg.register("destination", WebDestinationProvider(), priority=1)
+        reg.register("geocoding", NominatimGeocoder())
+        reg.register("destination", CatalogDestinationProvider(), priority=10)
+        reg.register("destination", WebDestinationProvider(), priority=1)
+
+    if not reg.get_all("accommodation"):
+        from agent.tripos.providers.web_intelligence import (
+            WebAccommodationProvider,
+            WebRestaurantProvider,
+            WebWeatherProvider,
+        )
+
+        reg.register("accommodation", WebAccommodationProvider())
+        reg.register("restaurant", WebRestaurantProvider())
+        reg.register("weather", WebWeatherProvider())

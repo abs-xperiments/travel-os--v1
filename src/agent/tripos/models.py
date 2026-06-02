@@ -176,6 +176,49 @@ class Itinerary(BaseModel):
     day_plans: list[DayPlan]
 
 
+class Accommodation(BaseModel):
+    """A recommended place to stay (web-grounded estimate, not a live booking quote)."""
+
+    name: str
+    area: str = Field(description="Neighbourhood / base within the destination.")
+    kind: str = Field(description="e.g. hostel, budget hotel, homestay, boutique, resort.")
+    tier: str = Field(description="budget | mid | premium")
+    price_per_night_low: float = Field(ge=0, description="Estimated room price/night (₹), low.")
+    price_per_night_high: float = Field(ge=0, description="Estimated room price/night (₹), high.")
+    rating: float | None = Field(default=None, description="0–5 if known.")
+    why: str = Field(description="One-line reason this suits the traveler.")
+
+
+class Restaurant(BaseModel):
+    """A recommended place to eat (web-grounded estimate)."""
+
+    name: str
+    area: str
+    cuisine: str
+    price_band: str = Field(description="$ | $$ | $$$")
+    good_for: str = Field(description="e.g. vegetarian-friendly, family, local/authentic.")
+    why: str
+
+
+class WeatherInsight(BaseModel):
+    """What the weather/season means for the trip, with practical advisories."""
+
+    summary: str
+    season_label: str = Field(description="e.g. peak, shoulder, monsoon, winter.")
+    advisories: list[str] = Field(default_factory=list)
+    temp_low_c: float | None = None
+    temp_high_c: float | None = None
+    source: str = "Open-Meteo climate normals"
+
+
+class TripEnrichment(BaseModel):
+    """Retrieved stays + restaurants + weather for a destination (one cached retrieval)."""
+
+    stays: list[Accommodation] = Field(default_factory=list)
+    restaurants: list[Restaurant] = Field(default_factory=list)
+    weather: WeatherInsight | None = None
+
+
 class TripPlan(BaseModel):
     """The complete proposal — the aggregate that ties every module's output together."""
 
@@ -185,3 +228,7 @@ class TripPlan(BaseModel):
     itinerary: Itinerary
     budget: BudgetEstimate
     feasibility: FeasibilityResult
+    # Phase 2 enrichment (optional — attached after retrieval; absent on a bare plan).
+    stays: list[Accommodation] = Field(default_factory=list)
+    restaurants: list[Restaurant] = Field(default_factory=list)
+    weather: WeatherInsight | None = None

@@ -15,7 +15,13 @@ from __future__ import annotations
 import re
 from typing import Protocol, runtime_checkable
 
-from agent.tripos.models import Destination, TripBrief
+from agent.tripos.models import (
+    Accommodation,
+    Destination,
+    Restaurant,
+    TripBrief,
+    WeatherInsight,
+)
 
 
 @runtime_checkable
@@ -30,6 +36,39 @@ class DestinationProvider(Protocol):
     name: str
 
     async def fetch(self, query: str, brief: TripBrief | None = None) -> Destination | None: ...
+
+
+@runtime_checkable
+class WeatherProvider(Protocol):
+    """Returns a weather/season insight for a destination + trip (or None if unavailable)."""
+
+    name: str
+
+    async def insight(
+        self, destination: Destination, brief: TripBrief
+    ) -> WeatherInsight | None: ...
+
+
+@runtime_checkable
+class AccommodationProvider(Protocol):
+    """Returns ranked, tiered accommodation recommendations for a destination + trip.
+
+    Phase 2 ships a web-grounded implementation; future paid sources (Booking, Airbnb, …)
+    implement this same interface and slot into the registry with no planner change.
+    """
+
+    name: str
+
+    async def search(self, destination: Destination, brief: TripBrief) -> list[Accommodation]: ...
+
+
+@runtime_checkable
+class RestaurantProvider(Protocol):
+    """Returns restaurant recommendations for a destination + trip (diet/budget-aware)."""
+
+    name: str
+
+    async def search(self, destination: Destination, brief: TripBrief) -> list[Restaurant]: ...
 
 
 def slugify(name: str) -> str:

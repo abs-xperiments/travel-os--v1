@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from agent.tripos import destination_catalog as catalog
 from agent.tripos import trip_planner
-from agent.tripos.models import GroupType, Pace, TravelStyle, TripBrief
+from agent.tripos.models import Accommodation, GroupType, Pace, TravelStyle, TripBrief
 
 
 def _priya_brief() -> TripBrief:
@@ -49,3 +49,26 @@ def test_plan_trip_plans_whatever_destination_it_is_given():
     plan = trip_planner.plan_trip(_priya_brief(), goa)
     assert plan.destination_id == "goa"
     assert plan.attractions
+
+
+def test_per_person_nightly_prefers_mid_tier_and_halves_room_price():
+    stays = [
+        Accommodation(
+            name="A", area="x", kind="hotel", tier="mid",
+            price_per_night_low=3000, price_per_night_high=5000, why="w",
+        ),
+        Accommodation(
+            name="B", area="x", kind="resort", tier="premium",
+            price_per_night_low=9000, price_per_night_high=11000, why="w",
+        ),
+    ]
+    assert trip_planner.per_person_nightly(stays) == 2000  # mid avg room 4000, /2 occupancy
+    assert trip_planner.per_person_nightly([]) is None
+
+
+def test_retrieved_stay_rate_refines_the_accommodation_budget():
+    munnar = catalog.get_destination("munnar")
+    assert munnar is not None
+    base = trip_planner.plan_trip(_priya_brief(), munnar)
+    cheaper = trip_planner.plan_trip(_priya_brief(), munnar, stay_per_person_per_night=500)
+    assert cheaper.budget.per_person_total < base.budget.per_person_total

@@ -27,7 +27,7 @@ from pydantic_ai.messages import (
 
 from agent.services.llm import build_model
 from agent.tripos import destination_catalog as catalog
-from agent.tripos import destination_intelligence, trip_planner
+from agent.tripos import destination_intelligence, trip_intelligence, trip_planner
 from agent.tripos.models import Destination, GroupType, Pace, TravelStyle, TripBrief, TripPlan
 from agent.tripos.provider_interfaces import slugify
 
@@ -57,6 +57,11 @@ How you work:
   "per person" (e.g. "Estimated per-person budget: ₹X–₹Y") — it's an estimate, not a bookable
   price; when the traveler count is known, ALSO show the total group cost; and the feasibility
   verdict, with a one-line "why" for the destination. Per-person is always the primary figure.
+- After the itinerary, add short sections using build_trip's data: "Where to stay" (a budget /
+  mid / premium pick from `stays`, each with its nightly price range labelled an estimate),
+  "Where to eat" (a few `restaurants`, matched to the food preference), and "Weather" (the
+  `weather` season note + any advisories). A few lines each. These are web-grounded estimates,
+  not live bookings — say so. If a section's data is empty, simply skip it.
 - If `build_trip` returns `feasible: false`, say so plainly and pass on its fix suggestions.
 - If `build_trip` returns an `error` that the place couldn't be found, the name was likely
   misspelled or too vague — ask the user to check the spelling or name a nearby well-known
@@ -111,6 +116,38 @@ def _compact_plan(plan: TripPlan, destination: Destination) -> dict:
             }
             for d in plan.itinerary.day_plans
         ],
+        # Phase 2 enrichment (web-grounded estimates, not live bookings).
+        "stays": [
+            {
+                "name": s.name,
+                "area": s.area,
+                "tier": s.tier,
+                "kind": s.kind,
+                "price_per_night": [s.price_per_night_low, s.price_per_night_high],
+                "why": s.why,
+            }
+            for s in plan.stays[:6]
+        ],
+        "restaurants": [
+            {
+                "name": r.name,
+                "area": r.area,
+                "cuisine": r.cuisine,
+                "price_band": r.price_band,
+                "good_for": r.good_for,
+            }
+            for r in plan.restaurants[:6]
+        ],
+        "weather": (
+            {
+                "summary": plan.weather.summary,
+                "season": plan.weather.season_label,
+                "advisories": plan.weather.advisories,
+                "temps_c": [plan.weather.temp_low_c, plan.weather.temp_high_c],
+            }
+            if plan.weather
+            else None
+        ),
     }
 
 
@@ -161,7 +198,18 @@ async def build_trip(
             "Could you check the spelling, or name a nearby well-known town?"
         }
 
-    plan = trip_planner.plan_trip(brief, resolved)
+    # Enrich with stays + restaurants + weather (best-effort), and use the retrieved nightly
+    # rate to make the accommodation budget real.
+    enrichment = await trip_intelligence.enrich(resolved, brief)
+    stay_rate = trip_planner.per_person_nightly(enrichment.stays)
+    plan = trip_planner.plan_trip(brief, resolved, stay_per_person_per_night=stay_rate)
+    plan = plan.model_copy(
+        update={
+            "stays": enrichment.stays,
+            "restaurants": enrichment.restaurants,
+            "weather": enrichment.weather,
+        }
+    )
     return _compact_plan(plan, resolved)
 
 

@@ -20,6 +20,7 @@ from agent.tripos import (
     trip_feasibility_checker as feasibility,
 )
 from agent.tripos.models import (
+    Accommodation,
     Attraction,
     BudgetBreakdown,
     BudgetEstimate,
@@ -57,11 +58,27 @@ def traveler_count(brief: TripBrief) -> int:
     return _GROUP_DEFAULT_TRAVELERS.get(brief.group_type, 2)
 
 
-def _rough_budget(brief: TripBrief, stops: list[Attraction]) -> BudgetEstimate:
+def per_person_nightly(stays: list[Accommodation]) -> float | None:
+    """A per-person nightly rate from retrieved mid-tier stays (assume ~2 share a room).
+
+    Returns None if there are no usable stays, so the budget falls back to the baseline.
+    """
+    mid = [s for s in stays if s.tier == "mid"] or stays
+    if not mid:
+        return None
+    avg_room = sum((s.price_per_night_low + s.price_per_night_high) / 2 for s in mid) / len(mid)
+    return round(avg_room / 2) if avg_room > 0 else None
+
+
+def _rough_budget(
+    brief: TripBrief, stops: list[Attraction], stay_per_person_per_night: float | None = None
+) -> BudgetEstimate:
     nights = max(brief.days - 1, 1)
+    # Use a retrieved per-person nightly rate when available; else the placeholder baseline.
+    stay = stay_per_person_per_night if stay_per_person_per_night else _STAY_PER_PERSON_PER_NIGHT
     breakdown = BudgetBreakdown(  # all PER PERSON
         transport=_TRANSPORT_PER_PERSON + _LOCAL_TRANSPORT_PER_PERSON_PER_DAY * brief.days,
-        accommodation=_STAY_PER_PERSON_PER_NIGHT * nights,
+        accommodation=stay * nights,
         food=_FOOD_PER_PERSON_PER_DAY * brief.days,
         activities=_ACTIVITY_PER_PERSON_PER_STOP * len(stops),
         misc=_MISC_PER_PERSON,
@@ -71,15 +88,18 @@ def _rough_budget(brief: TripBrief, stops: list[Attraction]) -> BudgetEstimate:
     )
 
 
-def plan_trip(brief: TripBrief, destination: Destination) -> TripPlan:
+def plan_trip(
+    brief: TripBrief, destination: Destination, stay_per_person_per_night: float | None = None
+) -> TripPlan:
     """Build the full plan for a completed brief and an already-resolved destination.
 
     The destination is resolved upstream (catalog or web retrieval) and injected — there is no
-    "unknown destination" case here; this module plans whatever it's given.
+    "unknown destination" case here; this module plans whatever it's given. If a retrieved
+    per-person nightly stay rate is supplied, it refines the accommodation budget.
     """
     stops = attraction_selector.select_attractions(destination, brief)
     itinerary = itinerary_builder.build_itinerary(destination, stops, brief.days, brief.pace)
-    budget = _rough_budget(brief, stops)
+    budget = _rough_budget(brief, stops, stay_per_person_per_night)
     feas = feasibility.check_feasibility(stops, brief.days)
 
     return TripPlan(

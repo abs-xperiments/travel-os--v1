@@ -335,3 +335,21 @@ est ₹16,100 (range 13,755–18,445), group total ₹64,400 (=×4). 35 offline 
 pyright clean. Next: deploy + verify in prod.
 
 VERIFIED IN PROD: a Munnar plan rendered a budget table "Per Person | Group of 4" — per-person primary + group total, live.
+
+## 2026-06-02 — V2 Phase 2: accommodation + restaurant + weather intelligence
+Added the "stay/eat/weather" intelligence layer behind the provider-agnostic pattern (scoped:
+single-destination enrichment + budget realism; multi-stay route optimisation stays with
+circuits in Phase 3). New: models Accommodation/Restaurant/WeatherInsight/TripEnrichment +
+optional stays/restaurants/weather on TripPlan; provider_interfaces WeatherProvider/
+AccommodationProvider/RestaurantProvider; `intelligence_cache` (Neon, migration 003);
+`providers/web_intelligence.py` = ONE cached combined research()+extraction per destination,
+sliced by three thin providers (cost: one fetch serves all three); `trip_intelligence.enrich()`
+(best-effort — empty on failure so the plan still ships). Integrated into build_trip: resolve →
+enrich → use retrieved mid-tier nightly rate (trip_planner.per_person_nightly, ~2 share a room)
+to refine the accommodation budget → attach stays/restaurants/weather → _compact_plan surfaces
+them → prompt presents "Where to stay / eat / Weather" sections (chat + PDF already render the
+markdown). Registered the 3 providers idempotently per role. Verified live (Munnar): 6 stays
+(budget/mid tiers, e.g. ₹850–1500), 6 restaurants, weather seasons; per-person est shifted to
+the retrieved rate. 37 offline tests pass (+ stay-override & per_person_nightly tests, +
+integration test_trip_intelligence), ruff+pyright clean. Honesty: prices/ratings are web
+estimates, not live bookings (labelled). Next: deploy + verify in prod.
