@@ -244,6 +244,27 @@ class CircuitOptions(BaseModel):
     circuits: list[Circuit] = Field(default_factory=list)
 
 
+class CircuitStop(BaseModel):
+    """One leg of a built circuit: a destination, its nights, day plans, and stays."""
+
+    destination: str
+    nights: int
+    day_plans: list[DayPlan] = Field(default_factory=list)
+    stays: list[Accommodation] = Field(default_factory=list)
+
+
+class CircuitPlan(BaseModel):
+    """A fully built multi-destination trip — the aggregate for a planned circuit."""
+
+    name: str
+    stops: list[CircuitStop]
+    total_nights: int
+    budget: BudgetEstimate
+    feasibility: FeasibilityResult
+    restaurants: list[Restaurant] = Field(default_factory=list)
+    weather: WeatherInsight | None = None
+
+
 class TripPlan(BaseModel):
     """The complete proposal — the aggregate that ties every module's output together."""
 

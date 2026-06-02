@@ -385,3 +385,19 @@ Verified locally: a bare "I'd like to plan a trip" → a friendly bulleted set o
 ZERO forbidden terms. 37 offline tests pass, ruff+pyright clean. Next: deploy + verify in prod.
 
 VERIFIED IN PROD: (voice) bare request -> friendly bulleted questions, zero internal jargon; (circuits) "6 days in Kerala" -> 4 named routes with nights. Both live.
+
+## 2026-06-02 — V2 Phase 3b: multi-leg circuit auto-build (the deferred heavy piece)
+Built the full multi-destination trip builder. New: models CircuitStop/CircuitPlan;
+`circuit_planner.plan_circuit(name, legs, brief)` — for each (destination, nights) leg it
+reuses destination_intelligence.resolve + trip_intelligence.enrich + trip_planner.plan_trip,
+then stitches: continuous day numbering across legs (titles prefixed with the place), a stay
+per leg, and ONE combined per-person budget via new trip_planner.circuit_budget (single base
+transport + inter-city hop/leg + per-leg accommodation/food/activities). MAX_LEGS cap. Agent:
+`build_circuit` tool (parallel destinations+nights lists) + _compact_circuit; prompt now says
+"when they pick a route, build the WHOLE multi-stop trip" and present it leg by leg + one
+combined per-person budget. Cost/latency: a resolve+enrich per leg (cached after first) — runs
+behind the streaming "Building your trip…" status; not a separate background job. Verified live:
+Munnar(2n)→Wayanad(1n) → days [1,2,3], a stay each leg, per-person ₹22,450 / group ₹44,900.
+37 offline tests + integration test_circuit_planner (2 catalog legs). ruff+pyright clean.
+Deferred still: deep geo route re-ordering + real inter-city times; premium provider adapters.
+Next: deploy + verify in prod.

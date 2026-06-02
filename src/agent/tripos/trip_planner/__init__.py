@@ -39,6 +39,7 @@ _STAY_PER_PERSON_PER_NIGHT = 1800.0
 _FOOD_PER_PERSON_PER_DAY = 1000.0
 _ACTIVITY_PER_PERSON_PER_STOP = 400.0
 _MISC_PER_PERSON = 1500.0
+_INTER_CITY_PER_PERSON_PER_HOP = 1500.0  # travel between circuit legs (per person, rough)
 
 # Default traveler count inferred from the group when the user didn't give an exact number.
 _GROUP_DEFAULT_TRAVELERS: dict[GroupType, int] = {
@@ -68,6 +69,31 @@ def per_person_nightly(stays: list[Accommodation]) -> float | None:
         return None
     avg_room = sum((s.price_per_night_low + s.price_per_night_high) / 2 for s in mid) / len(mid)
     return round(avg_room / 2) if avg_room > 0 else None
+
+
+def circuit_budget(
+    brief: TripBrief,
+    *,
+    total_days: int,
+    total_stops: int,
+    accommodation_per_person: float,
+    hops: int,
+) -> BudgetEstimate:
+    """Combined PER-PERSON budget for a multi-leg circuit (one transport base + inter-city hops)."""
+    breakdown = BudgetBreakdown(
+        transport=(
+            _TRANSPORT_PER_PERSON
+            + _INTER_CITY_PER_PERSON_PER_HOP * max(hops, 0)
+            + _LOCAL_TRANSPORT_PER_PERSON_PER_DAY * total_days
+        ),
+        accommodation=accommodation_per_person,
+        food=_FOOD_PER_PERSON_PER_DAY * total_days,
+        activities=_ACTIVITY_PER_PERSON_PER_STOP * total_stops,
+        misc=_MISC_PER_PERSON,
+    )
+    return budget_estimator.estimate_budget(
+        breakdown, budget=brief.budget, travelers=traveler_count(brief)
+    )
 
 
 def _rough_budget(
