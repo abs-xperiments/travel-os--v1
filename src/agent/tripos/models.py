@@ -11,9 +11,27 @@ missing). Seed JSON that won't load is almost always a mismatch with `Attraction
 
 from __future__ import annotations
 
+from datetime import date
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
+
+#: Month names indexed 1–12 (index 0 unused) — for presenting `travel_month` numbers.
+MONTH_NAMES = (
+    "",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
 
 
 class TravelStyle(StrEnum):
@@ -157,6 +175,16 @@ class TripBrief(BaseModel):
     travelers: int | None = Field(
         default=None, ge=1, description="Traveler count if the user gave one; else inferred."
     )
+    travel_month: int | None = Field(
+        default=None,
+        ge=1,
+        le=12,
+        description="Month of travel (1–12) — drives all seasonality logic. None = flexible.",
+    )
+    # Exact dates are stored when the traveler gives them but never demanded — V1 plans by
+    # month; these are the extension point for V2 accommodation booking (which needs dates).
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class DayPlan(BaseModel):
@@ -211,12 +239,50 @@ class WeatherInsight(BaseModel):
     source: str = "Open-Meteo climate normals"
 
 
+class MonthRating(StrEnum):
+    """How suitable a month is for visiting a destination (policy step 4's five levels)."""
+
+    excellent = "excellent"
+    good = "good"
+    acceptable = "acceptable"
+    challenging = "challenging"
+    not_recommended = "not_recommended"
+
+
+class MonthAssessment(BaseModel):
+    """One month's travel suitability for a destination, with the reason."""
+
+    month: int = Field(ge=1, le=12)
+    rating: MonthRating
+    note: str = Field(description="Short reason, e.g. 'peak monsoon — heavy daily rain'.")
+
+
+class SeasonalityProfile(BaseModel):
+    """A destination's year-round suitability — retrieved once, cached, answers any month.
+
+    This is the ONLY legitimate source for season verdicts and best-window advice
+    (never the model's memory — see failure_modes.md).
+    """
+
+    months: list[MonthAssessment] = Field(default_factory=list)
+    best_months: list[int] = Field(
+        default_factory=list, description="The recommended window, as month numbers."
+    )
+    summary: str = Field(default="", description="One line on the destination's seasons.")
+
+    def for_month(self, month: int) -> MonthAssessment | None:
+        """The assessment for a month, or None if the profile doesn't cover it."""
+        return next((m for m in self.months if m.month == month), None)
+
+
 class TripEnrichment(BaseModel):
-    """Retrieved stays + restaurants + weather for a destination (one cached retrieval)."""
+    """Retrieved stays + restaurants + weather + seasonality (one cached retrieval)."""
 
     stays: list[Accommodation] = Field(default_factory=list)
     restaurants: list[Restaurant] = Field(default_factory=list)
     weather: WeatherInsight | None = None
+    # Optional so enrichments cached before seasonality existed still validate.
+    seasonality: SeasonalityProfile | None = None
 
 
 class CircuitLeg(BaseModel):
