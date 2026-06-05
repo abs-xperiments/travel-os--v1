@@ -537,3 +537,23 @@ model quoting "₹8,000–18,000 return" FROM MEMORY, exactly the fabrication cl
 permanent — future distance-aware composers improve accuracy, not the format. Deterministic
 thresholds chosen: fits = total ≤ budget; slightly_over = total > budget, low ≤ 1.4×budget;
 not_achievable = low > 1.4×budget. Endpoints rounded to ₹500 (floor low, ceil high).
+
+## 2026-06-06 04:05 — Phase A built & live-verified: budget is now a constraint, honestly presented
+Engine: budget_estimator rewritten — per-person RANGE with rounded endpoints (floor/ceil to
+₹500) is the primary figure; confidence = high/medium/low from REAL knowledge flags
+(month_known, stays_retrieved) + stated reason (replaced the spread-% which was confidence
+theater); three-state fit verdict (fits / slightly_over / not_achievable at low>1.4×budget)
+with matching levers; month-unknown widens every band 1.5×. trip_planner.choose_stay() does
+fit-first economizing: highest tier affordable from what's left per night after other costs
+(_EST_STOPS_PER_DAY=2 rough), luxury NEVER silently downgraded below mid — conflict flagged
+for the agent to ASK. Circuits: per-leg choose_stay against the WHOLE-trip budget; flags into
+circuit_budget. Agent: compact plans expose range/fit/confidence+reason/adjustments +
+recommended_stay_tier + style_conflict; discover_circuits output ranked by
+budget_compatibility (fits<stretch<premium<unknown, then cheapest); prompt gained the BUDGET
+ADVISING state — and the exception is carved into READY alongside the season one (the lesson
+from the seasonality prompt-conflict bug, applied preemptively). MONEY-IS-RANGES rule incl.
+the flight-fare ban. Live verification (all pass): Munnar ₹22k → builds, "✅ Fits comfortably",
+rounded range, "Confidence: High —" with reason; Dubai ₹20k Jan → advisory-only (range table,
+4 levers, one question, NO plan); Udaipur luxury ₹30k → conflict advisory (palace-stay costs,
+budget-up / boutique-instead / shorter — no silent downgrade). 60 offline tests, ruff+pyright
+clean. Next: Phase B (preferences as constraints), Phase C (structured intake).

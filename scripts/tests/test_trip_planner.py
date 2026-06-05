@@ -101,6 +101,66 @@ def test_season_assessment_adapts_the_plan_and_stamps_a_visible_note():
     assert not any("Planned for" in n for n in bare.itinerary.day_plans[0].notes)
 
 
+def _stay(tier: str, low: float, high: float) -> Accommodation:
+    return Accommodation(
+        name=f"{tier} stay",
+        area="x",
+        kind="hotel",
+        tier=tier,
+        price_per_night_low=low,
+        price_per_night_high=high,
+        why="w",
+    )
+
+
+def _three_tiers() -> list[Accommodation]:
+    # per-person nightly ≈ 750 / 2000 / 6000 (room avg halved for 2 sharing)
+    return [_stay("budget", 1000, 2000), _stay("mid", 3000, 5000), _stay("premium", 10000, 14000)]
+
+
+def _budget_brief(budget: float, interests: list[TravelStyle] | None = None) -> TripBrief:
+    return TripBrief(
+        start_city="Chennai",
+        days=5,
+        budget=budget,
+        group_type=GroupType.couple,
+        interests=interests or [TravelStyle.sightseeing],
+    )
+
+
+def test_choose_stay_picks_the_tier_the_budget_affords():
+    # Tight budget -> budget tier (with the economizing note); generous -> premium.
+    tight = trip_planner.choose_stay(_three_tiers(), _budget_brief(25000))
+    assert tight.tier == "budget" and not tight.style_conflict
+    assert tight.note and "fit your budget" in tight.note
+    generous = trip_planner.choose_stay(_three_tiers(), _budget_brief(200000))
+    assert generous.tier == "premium" and generous.note is None
+
+
+def test_choose_stay_never_silently_downgrades_luxury():
+    # Luxury + tight budget -> premium tier kept, conflict FLAGGED for the agent to ask.
+    choice = trip_planner.choose_stay(
+        _three_tiers(), _budget_brief(30000, interests=[TravelStyle.luxury])
+    )
+    assert choice.tier == "premium"
+    assert choice.style_conflict is True
+
+
+def test_choose_stay_without_retrieved_stays_falls_back():
+    choice = trip_planner.choose_stay([], _budget_brief(50000))
+    assert choice.rate is None and choice.tier is None and not choice.style_conflict
+
+
+def test_budget_verdict_and_confidence_flow_into_the_plan():
+    munnar = catalog.get_destination("munnar")
+    assert munnar is not None
+    brief = _priya_brief().model_copy(update={"travel_month": 1})
+    plan = trip_planner.plan_trip(brief, munnar, stay_per_person_per_night=750)
+    assert plan.budget.fit is not None  # a verdict is always present when a budget is given
+    assert plan.budget.confidence_level.value == "high"  # month known + retrieved rate
+    assert plan.budget.per_person_low % 500 == 0  # honest endpoints
+
+
 def test_retrieved_stay_rate_refines_the_accommodation_budget():
     munnar = catalog.get_destination("munnar")
     assert munnar is not None

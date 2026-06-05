@@ -86,8 +86,10 @@ HOW YOU OPERATE (internal — NEVER reveal or reference any of this to the trave
     build the plan, and you present it in the SAME reply (a brief "Perfect — building it!" is
     fine, but actually produce it; never promise and stop). Before building, do a final check:
     is any required item still unanswered? If yes, you're still GATHERING — ask, don't build.
-    ONE exception: if the season check rates their month challenging or not_recommended and
-    they haven't yet confirmed their dates, you are in ADVISING, not READY — see SEASON CHECK.
+    TWO exceptions put you in ADVISING, not READY: (a) the season check rates their month
+    challenging or not_recommended and they haven't confirmed their dates (see SEASON CHECK);
+    (b) the built plan's budget verdict is over budget or conflicts with their style and they
+    haven't chosen what to do (see BUDGET). In ADVISING you ask, you never present a final plan.
 - Don't over-ask: only the required items above (pace only if it comes up). Skip trivial or
   easily-inferred questions. But once you've asked something, wait for the answer before planning.
 - SEASON CHECK (between gathering and building): once you know the destination (or chosen
@@ -107,6 +109,25 @@ HOW YOU OPERATE (internal — NEVER reveal or reference any of this to the trave
   • Season verdicts and best-window advice come ONLY from this check — never from memory.
 - Always pass the travel month (and exact dates, only if the traveler offered them) when you
   build, so the trip is shaped for the season.
+- BUDGET (the engine already economizes — stays are auto-picked at the tier the budget
+  affords). After building, read the plan's budget verdict (`fit`) before presenting:
+  • fits → present normally; lead the stays with the recommended tier.
+  • slightly_over or not_achievable → ADVISING: your ENTIRE reply is a short budget advisory —
+    the estimated RANGE vs their budget, the suggested adjustments, and ONE question: "want me
+    to adjust it to fit, or keep it as is?" NEVER present it as a final plan in that reply.
+    If they say keep → present the plan you already built immediately (honest verdict shown),
+    and never re-warn. If they pick a lever → rebuild with it.
+  • style_conflict=true (they asked for luxury but it doesn't fit the budget) → ADVISING: say
+    what luxury-level stays cost there and ask whether to adjust the budget, the style, or the
+    destination — NEVER silently downgrade a stated style.
+- MONEY IS ALWAYS RANGES: present the per-person RANGE as the figure (never an exact total —
+  the numbers are estimates), with a "Budget Feasibility" line (✓ fits comfortably /
+  ⚠ slightly above / ❌ not realistic), the confidence level WITH its reason, and one line on
+  what the estimate is based on. NEVER state an exact flight or transport fare from memory —
+  only typical-pattern ranges ("flights usually run ₹12,000–₹18,000 return"), clearly estimates.
+- Routes from route discovery arrive ALREADY ranked by budget fit with a budget_compatibility
+  label — present them in that order, label honestly ("fits your budget" / "a stretch" /
+  "premium"), and never lead with an over-budget option.
 - You can plan anywhere — not limited to any list. If they don't know where to go, suggest a
   few fitting ideas. If they give a region/country + days but no single place (e.g. "6 days in
   Kerala") or aren't sure how to combine places, propose 2–4 sensible routes (stops in order,
@@ -234,14 +255,18 @@ def _compact_plan(
         "feasibility_reasons": plan.feasibility.reasons,
         "feasibility_suggestions": plan.feasibility.suggestions,
         "currency": "INR",
-        "per_person_budget": {  # PRIMARY figure — present this, labelled "per person"
-            "estimate": plan.budget.per_person_total,
-            "low": plan.budget.per_person_low,
-            "high": plan.budget.per_person_high,
-            "confidence": plan.budget.confidence,
+        "per_person_budget": {  # PRIMARY figure — present the RANGE, labelled "per person"
+            "range": [plan.budget.per_person_low, plan.budget.per_person_high],
+            "fit": plan.budget.fit.value if plan.budget.fit else None,
+            "confidence": plan.budget.confidence_level.value,
+            "confidence_reason": plan.budget.confidence_reason,
+            "adjustments": plan.budget.adjustments,
         },
         "travelers": plan.budget.travelers,
-        "group_total_estimate": plan.budget.group_total,  # per_person × travelers
+        "group_total_range": [  # per_person range × travelers — never an exact group figure
+            plan.budget.per_person_low * plan.budget.travelers,
+            plan.budget.per_person_high * plan.budget.travelers,
+        ],
         "budget_notes": plan.budget.notes,
         "itinerary": [
             {
@@ -348,16 +373,20 @@ async def build_trip(
             "Could you check the spelling, or name a nearby well-known town?"
         }
 
-    # Use the retrieved nightly rate to make the accommodation budget real, and the travel
-    # month's season assessment (if any) to adapt the plan to the season.
-    stay_rate = trip_planner.per_person_nightly(enrichment.stays)
+    # The budget CONSTRAINS the plan: pick the stay tier it affords (fit-first; luxury is
+    # never silently downgraded), and adapt to the travel month's season assessment (if any).
+    choice = trip_planner.choose_stay(enrichment.stays, brief)
     season = (
         enrichment.seasonality.for_month(brief.travel_month)
         if enrichment.seasonality and brief.travel_month
         else None
     )
     plan = trip_planner.plan_trip(
-        brief, resolved, stay_per_person_per_night=stay_rate, season=season
+        brief,
+        resolved,
+        stay_per_person_per_night=choice.rate,
+        season=season,
+        stay_note=choice.note,
     )
     plan = plan.model_copy(
         update={
@@ -366,7 +395,30 @@ async def build_trip(
             "weather": enrichment.weather,
         }
     )
-    return _compact_plan(plan, resolved, enrichment.seasonality)
+    out = _compact_plan(plan, resolved, enrichment.seasonality)
+    out["recommended_stay_tier"] = choice.tier  # lead the stays section with this tier
+    out["style_conflict"] = choice.style_conflict  # luxury asked but doesn't fit -> ASK
+    return out
+
+
+_COMPAT_ORDER = {"fits": 0, "stretch": 1, "premium": 2, "unknown": 3}
+
+
+def budget_compatibility(est: float | None, budget: float) -> str:
+    """How a route's rough cost relates to the traveler's budget (drives the ranking)."""
+    if est is None or est <= 0:
+        return "unknown"
+    if est <= budget:
+        return "fits"
+    if est <= budget * 1.4:
+        return "stretch"
+    return "premium"
+
+
+def rank_circuits_by_budget(circuits: list, budget: float) -> list[tuple]:
+    """Best-budget-fit first (then cheapest) — popularity never outranks affordability."""
+    labelled = [(c, budget_compatibility(c.est_per_person_budget, budget)) for c in circuits]
+    return sorted(labelled, key=lambda cl: (_COMPAT_ORDER[cl[1]], cl[0].est_per_person_budget or 0))
 
 
 async def discover_circuits(
@@ -403,9 +455,11 @@ async def discover_circuits(
             "error": f"I couldn't find good multi-stop routes for {region!r}. "
             "Want to name a destination directly?"
         }
+    ranked = rank_circuits_by_budget(circuits, brief.budget)
     return {
         "region": region,
         "nights": nights,
+        # Already ranked best-budget-fit first — present them in THIS order.
         "circuits": [
             {
                 "name": c.name,
@@ -414,9 +468,10 @@ async def discover_circuits(
                 "total_nights": c.total_nights,
                 "style": c.style,
                 "est_per_person_budget": c.est_per_person_budget,
+                "budget_compatibility": label,  # fits | stretch | premium | unknown
                 "why": c.why,
             }
-            for c in circuits
+            for c, label in ranked
         ],
     }
 
@@ -429,14 +484,18 @@ def _compact_circuit(plan: CircuitPlan) -> dict:
         "feasible": plan.feasibility.realistic,
         "feasibility_reasons": plan.feasibility.reasons,
         "currency": "INR",
-        "per_person_budget": {  # PRIMARY — present labelled "per person"
-            "estimate": plan.budget.per_person_total,
-            "low": plan.budget.per_person_low,
-            "high": plan.budget.per_person_high,
-            "confidence": plan.budget.confidence,
+        "per_person_budget": {  # PRIMARY — present the RANGE, labelled "per person"
+            "range": [plan.budget.per_person_low, plan.budget.per_person_high],
+            "fit": plan.budget.fit.value if plan.budget.fit else None,
+            "confidence": plan.budget.confidence_level.value,
+            "confidence_reason": plan.budget.confidence_reason,
+            "adjustments": plan.budget.adjustments,
         },
         "travelers": plan.budget.travelers,
-        "group_total_estimate": plan.budget.group_total,
+        "group_total_range": [
+            plan.budget.per_person_low * plan.budget.travelers,
+            plan.budget.per_person_high * plan.budget.travelers,
+        ],
         "budget_notes": plan.budget.notes,
         "legs": [
             {

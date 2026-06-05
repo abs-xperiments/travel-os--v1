@@ -15,9 +15,11 @@ from datetime import date
 from agent.agents.tripos_planner import (
     _PROMISE_RE,
     _parse_date,
+    budget_compatibility,
     build_trip,
     check_travel_season,
     list_destinations,
+    rank_circuits_by_budget,
 )
 
 
@@ -68,6 +70,36 @@ async def test_build_trip_rejects_impossible_month_without_network():
 async def test_check_travel_season_rejects_impossible_month_without_network():
     out = await check_travel_season(destination="Dubai", month=0)
     assert "error" in out
+
+
+def test_circuits_rank_by_budget_fit_not_popularity():
+    from agent.tripos.models import Circuit
+
+    def _circuit(name: str, est: float | None) -> Circuit:
+        return Circuit(
+            name=name, legs=[], total_nights=5, style="s", est_per_person_budget=est, why="w"
+        )
+
+    circuits = [
+        _circuit("Premium Kerala", 85000),
+        _circuit("Classic Kerala", 28000),
+        _circuit("Mystery", None),
+        _circuit("Stretch Kerala", 38000),
+    ]
+    ranked = rank_circuits_by_budget(circuits, budget=30000)
+    assert [(c.name, label) for c, label in ranked] == [
+        ("Classic Kerala", "fits"),
+        ("Stretch Kerala", "stretch"),
+        ("Premium Kerala", "premium"),
+        ("Mystery", "unknown"),
+    ]
+
+
+def test_budget_compatibility_thresholds():
+    assert budget_compatibility(28000, 30000) == "fits"
+    assert budget_compatibility(38000, 30000) == "stretch"  # within 1.4x
+    assert budget_compatibility(85000, 30000) == "premium"
+    assert budget_compatibility(None, 30000) == "unknown"
 
 
 def test_parse_date_accepts_iso_and_never_raises():

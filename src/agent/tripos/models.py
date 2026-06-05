@@ -121,16 +121,44 @@ class BudgetBreakdown(BaseModel):
     misc: float = Field(default=0.0, ge=0)
 
 
+class BudgetFit(StrEnum):
+    """How a plan's estimate relates to the traveler's stated budget — shown on every plan."""
+
+    fits = "fits"  # ✓ estimate within budget
+    slightly_over = "slightly_over"  # ⚠ over, but fixable with the usual levers
+    not_achievable = "not_achievable"  # ❌ realistically can't fit as asked
+
+
+class BudgetConfidence(StrEnum):
+    """How far to trust the estimate — derived from what's actually KNOWN, never theater."""
+
+    high = "high"  # travel month known + stay prices retrieved
+    medium = "medium"  # one of the two known
+    low = "low"  # neither — seasonal pricing can swing widely
+
+
 class BudgetEstimate(BaseModel):
-    """A trip's cost estimate. The PER-PERSON figure is primary; the group total is derived."""
+    """A trip's cost estimate. The PER-PERSON *range* is the primary, user-facing figure.
+
+    Presentation contract (permanent — future pricing modules improve accuracy, not format):
+    a rounded range, a confidence level with its reason, and a budget-fit verdict.
+    `per_person_total` is the internal point estimate; never present it as an exact price.
+    """
 
     by_category: dict[str, float] = Field(description="Per-person cost by category (₹).")
-    per_person_total: float = Field(description="Primary figure: estimated cost per traveler (₹).")
-    per_person_low: float = Field(description="Lower end of the per-person range (₹).")
-    per_person_high: float = Field(description="Upper end of the per-person range (₹).")
+    per_person_total: float = Field(description="Internal point estimate per traveler (₹).")
+    per_person_low: float = Field(description="Range low, rounded to an honest increment (₹).")
+    per_person_high: float = Field(description="Range high, rounded to an honest increment (₹).")
     travelers: int = Field(default=1, ge=1)
     group_total: float = Field(description="per_person_total × travelers (₹).")
-    confidence: int = Field(ge=0, le=100, description="How tight the estimate is, 0–100.")
+    confidence_level: BudgetConfidence = BudgetConfidence.low
+    confidence_reason: str = Field(default="", description="Why the confidence is what it is.")
+    fit: BudgetFit | None = Field(
+        default=None, description="Verdict vs the stated budget (None if no budget given)."
+    )
+    adjustments: list[str] = Field(
+        default_factory=list, description="Suggested levers when the estimate is over budget."
+    )
     notes: list[str] = Field(default_factory=list)
 
 

@@ -11,6 +11,8 @@ See README.md in this folder for a plain-English explanation and debugging guide
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from agent.tripos import (
     attraction_selector,
     budget_estimator,
@@ -28,6 +30,7 @@ from agent.tripos.models import (
     Destination,
     GroupType,
     MonthAssessment,
+    TravelStyle,
     TripBrief,
     TripPlan,
 )
@@ -73,6 +76,86 @@ def per_person_nightly(stays: list[Accommodation]) -> float | None:
     return round(avg_room / 2) if avg_room > 0 else None
 
 
+@dataclass
+class StayChoice:
+    """The stay tier the budget affords — fit-first economizing happens HERE, not in a note."""
+
+    rate: float | None  # per-person nightly (None = no retrieved stays; baseline used)
+    tier: str | None  # budget | mid | premium — lead the presentation with this tier
+    style_conflict: bool  # luxury asked for but doesn't fit — advise, never silently downgrade
+    note: str | None  # one-liner for the budget notes when we economized
+
+
+_TIER_ORDER = ["budget", "mid", "premium"]  # cheapest -> priciest
+_EST_STOPS_PER_DAY = 2  # rough activity count for affordability math (selection comes later)
+
+
+def _tier_rates(stays: list[Accommodation]) -> dict[str, float]:
+    """Average per-person nightly rate per tier (~2 share a room), for tiers we have data for."""
+    rates: dict[str, float] = {}
+    for tier in _TIER_ORDER:
+        rooms = [s for s in stays if s.tier == tier]
+        if rooms:
+            avg = sum((s.price_per_night_low + s.price_per_night_high) / 2 for s in rooms) / len(
+                rooms
+            )
+            if avg > 0:
+                rates[tier] = round(avg / 2)
+    return rates
+
+
+def affordable_nightly(brief: TripBrief) -> float:
+    """What's left per night for the stay after the trip's other typical per-person costs."""
+    non_stay = (
+        _TRANSPORT_PER_PERSON
+        + _LOCAL_TRANSPORT_PER_PERSON_PER_DAY * brief.days
+        + _FOOD_PER_PERSON_PER_DAY * brief.days
+        + _ACTIVITY_PER_PERSON_PER_STOP * _EST_STOPS_PER_DAY * brief.days
+        + _MISC_PER_PERSON
+    )
+    nights = max(brief.days - 1, 1)
+    return max(brief.budget - non_stay, 0) / nights
+
+
+def choose_stay(stays: list[Accommodation], brief: TripBrief) -> StayChoice:
+    """Pick the stay tier the budget affords (the budget CONSTRAINS the plan, fit-first).
+
+    Default: the highest tier that fits what's left per night after other costs.
+    Luxury exception: a stated luxury style is never silently downgraded below mid — if even
+    the luxury-appropriate tier doesn't fit, we flag the conflict so the agent can ASK.
+    """
+    rates = _tier_rates(stays)
+    if not rates:
+        return StayChoice(rate=None, tier=None, style_conflict=False, note=None)
+    ceiling = affordable_nightly(brief)
+    wants_luxury = TravelStyle.luxury in brief.interests
+
+    if wants_luxury:
+        tier = "premium" if "premium" in rates else ("mid" if "mid" in rates else None)
+        if tier is None:  # only budget-tier data retrieved — can't honour luxury from data
+            tier = next(iter(rates))
+        conflict = rates[tier] > ceiling
+        return StayChoice(rate=rates[tier], tier=tier, style_conflict=conflict, note=None)
+
+    fitting = [t for t in _TIER_ORDER if t in rates and rates[t] <= ceiling]
+    if fitting:
+        tier = fitting[-1]  # the most comfortable tier that still fits
+        note = (
+            f"Stays picked at the {tier} tier to fit your budget."
+            if tier != "mid" and any(rates[t] > ceiling for t in rates)
+            else None
+        )
+        return StayChoice(rate=rates[tier], tier=tier, style_conflict=False, note=note)
+    # Nothing fits — take the cheapest tier; the budget-fit verdict will say it honestly.
+    tier = min(rates, key=lambda t: rates[t])
+    return StayChoice(
+        rate=rates[tier],
+        tier=tier,
+        style_conflict=False,
+        note=f"Even {tier}-tier stays push past the budget here — see the feasibility verdict.",
+    )
+
+
 def circuit_budget(
     brief: TripBrief,
     *,
@@ -80,6 +163,8 @@ def circuit_budget(
     total_stops: int,
     accommodation_per_person: float,
     hops: int,
+    stays_retrieved: bool = False,
+    extra_notes: list[str] | None = None,
 ) -> BudgetEstimate:
     """Combined PER-PERSON budget for a multi-leg circuit (one transport base + inter-city hops)."""
     breakdown = BudgetBreakdown(
@@ -94,12 +179,20 @@ def circuit_budget(
         misc=_MISC_PER_PERSON,
     )
     return budget_estimator.estimate_budget(
-        breakdown, budget=brief.budget, travelers=traveler_count(brief)
+        breakdown,
+        budget=brief.budget,
+        travelers=traveler_count(brief),
+        month_known=brief.travel_month is not None,
+        stays_retrieved=stays_retrieved,
+        extra_notes=extra_notes,
     )
 
 
 def _rough_budget(
-    brief: TripBrief, stops: list[Attraction], stay_per_person_per_night: float | None = None
+    brief: TripBrief,
+    stops: list[Attraction],
+    stay_per_person_per_night: float | None = None,
+    stay_note: str | None = None,
 ) -> BudgetEstimate:
     nights = max(brief.days - 1, 1)
     # Use a retrieved per-person nightly rate when available; else the placeholder baseline.
@@ -112,7 +205,12 @@ def _rough_budget(
         misc=_MISC_PER_PERSON,
     )
     return budget_estimator.estimate_budget(
-        breakdown, budget=brief.budget, travelers=traveler_count(brief)
+        breakdown,
+        budget=brief.budget,
+        travelers=traveler_count(brief),
+        month_known=brief.travel_month is not None,
+        stays_retrieved=stay_per_person_per_night is not None,
+        extra_notes=[stay_note] if stay_note else None,
     )
 
 
@@ -121,6 +219,7 @@ def plan_trip(
     destination: Destination,
     stay_per_person_per_night: float | None = None,
     season: MonthAssessment | None = None,
+    stay_note: str | None = None,
 ) -> TripPlan:
     """Build the full plan for a completed brief and an already-resolved destination.
 
@@ -133,7 +232,7 @@ def plan_trip(
     prefer_indoor = bool(season and season.lean_indoor)
     stops = attraction_selector.select_attractions(destination, brief, prefer_indoor=prefer_indoor)
     itinerary = itinerary_builder.build_itinerary(destination, stops, brief.days, brief.pace)
-    budget = _rough_budget(brief, stops, stay_per_person_per_night)
+    budget = _rough_budget(brief, stops, stay_per_person_per_night, stay_note)
     feas = feasibility.check_feasibility(stops, brief.days)
 
     # Make the adaptation visible on the itinerary itself (chat, print view, PDF alike).

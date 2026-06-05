@@ -40,7 +40,9 @@ async def _build_leg(dest_name: str, nights: int, brief: TripBrief) -> _LegResul
     if destination is None:
         return None
     leg_brief = brief.model_copy(update={"days": max(nights, 1), "destination_id": destination.id})
-    stay_rate = trip_planner.per_person_nightly(enrichment.stays)
+    # Stay tier is chosen against the WHOLE-trip budget (a leg doesn't get the full budget to
+    # itself) — pass the original brief, not the leg slice, to the affordability math.
+    choice = trip_planner.choose_stay(enrichment.stays, brief)
     # Each leg adapts to ITS OWN season for the travel month (profiles differ per destination).
     season = (
         enrichment.seasonality.for_month(brief.travel_month)
@@ -48,7 +50,7 @@ async def _build_leg(dest_name: str, nights: int, brief: TripBrief) -> _LegResul
         else None
     )
     leg_plan = trip_planner.plan_trip(
-        leg_brief, destination, stay_per_person_per_night=stay_rate, season=season
+        leg_brief, destination, stay_per_person_per_night=choice.rate, season=season
     )
     return destination, nights, leg_plan, enrichment
 
@@ -70,13 +72,19 @@ async def plan_circuit(
     weather: WeatherInsight | None = None
     reasons: list[str] = []
     all_realistic = True
+    any_stays_retrieved = False
+    stay_notes: list[str] = []
 
     for (dest_name, _), result in zip(chosen, results, strict=True):
         if result is None:
             reasons.append(f"Couldn't place {dest_name}, so it was left out.")
             continue
         destination, nights, leg_plan, enrichment = result
-        stay_rate = trip_planner.per_person_nightly(enrichment.stays)
+        choice = trip_planner.choose_stay(enrichment.stays, brief)
+        stay_rate = choice.rate
+        any_stays_retrieved = any_stays_retrieved or stay_rate is not None
+        if choice.note and choice.note not in stay_notes:
+            stay_notes.append(choice.note)
 
         renumbered = []
         for dp in leg_plan.itinerary.day_plans:
@@ -110,6 +118,8 @@ async def plan_circuit(
         total_stops=total_stops,
         accommodation_per_person=accommodation_pp,
         hops=max(len(stops) - 1, 0),
+        stays_retrieved=any_stays_retrieved,
+        extra_notes=stay_notes or None,
     )
     feasibility = FeasibilityResult(
         realistic=all_realistic,
