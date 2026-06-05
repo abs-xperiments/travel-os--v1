@@ -508,3 +508,32 @@ heat, Nov–Mar + Oct recommended, one keep-or-shift question, NO plan built) �
 designed ADVISING behavior, on the deployed URL. Prod + local share the Neon cache, so the
 dubai:v2 / munnar:v2 profiles were already warm. Feature complete per docs/scenarios.md
 §Seasonality. Next feature (user-decided order): Trip Comparison — own stage 3–4 design pass.
+
+## 2026-06-06 03:05 — New spec: personalization + input friction + constraint adherence; re-sequenced
+User feedback spec landed (3 streams): preferences as constraints (non-touristy → deprioritize
+mainstream), hybrid input collection (compact upfront intake + adaptive follow-ups), and budget
+as a HIGH-PRIORITY constraint (never ship ₹95k plan on ₹50k budget without warning). Audit
+findings: budget today is a COMMENTATOR not a constraint (estimator appends a note; stay rate
+always mid-tier; nothing economizes; circuits not budget-ranked). Personalization has NO
+channel: interests = 9 enums (4 scored), no free-text prefs reach build_trip, Attraction has no
+touristy/hidden dimension. Cached-enrichment caveat: extraction is colored by the FIRST
+traveler's budget then cached 30d — per-traveler tailoring must live at selection/presentation.
+DECISIONS (user): this spec BEFORE Trip Comparison (feedback-driven; comparison gets better
+after); phase order A budget → B preferences → C structured intake. Phase A design: fit-first
+(auto stay-tier downgrade when over budget — EXCEPT when interests include luxury), advisory
+turn only if still over (reuse the seasonality ADVISING pattern), budget-compatibility-ranked
+circuits. Levers are honest about placeholder baselines: stay tier + duration are the real ones.
+
+## 2026-06-06 03:30 — Budget-trust spec folded into Phase A before any code (good timing)
+Third user spec (budget accuracy/transparency/trust) arrived with Phase A designed but unbuilt
+— merged into the design instead of becoming its own phase. Adds to Phase A: (1) ranges with
+ROUNDED endpoints as the PRIMARY figure (live runs showed "₹18,835–₹25,715" — false precision);
+(2) confidence = high/medium/low derived from the REAL knowledge state (month known? stay rates
+retrieved vs placeholder?) + stated reason — replacing the spread-% which was confidence
+theater; (3) a ✓/⚠/❌ Budget Feasibility verdict on every plan w/ suggested adjustments;
+(4) HARD RULE: never an exact flight fare without a live source — the live Dubai run showed the
+model quoting "₹8,000–18,000 return" FROM MEMORY, exactly the fabrication class banned (ranges
++ "typical patterns" wording only); (5) presentation contract (range+confidence+verdict) is
+permanent — future distance-aware composers improve accuracy, not the format. Deterministic
+thresholds chosen: fits = total ≤ budget; slightly_over = total > budget, low ≤ 1.4×budget;
+not_achievable = low > 1.4×budget. Endpoints rounded to ₹500 (floor low, ceil high).

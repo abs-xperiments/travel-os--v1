@@ -20,6 +20,12 @@
 14. As a traveler with fixed dates (school holidays, leave already approved), I want TripOS to respect my dates after warning me and **adapt the plan to the season** (indoor-leaning, evening-leaning), so that the trip still works as well as it can.
 15. As a flexible traveler, I want TripOS to recommend the **best months** for my destination when I'm not sure when to go, so that timing becomes an advantage instead of a guess.
 16. As a traveler who knows my exact dates, I want them remembered with my trip, so that booking (when it arrives in a future version) won't have to ask me twice.
+17. As a traveler with a fixed budget, I want my per-person budget to **actively shape** the plan — the stays picked, the route suggested — so the estimate lands *within* it instead of surprising me at the end.
+18. As a traveler whose trip genuinely can't fit my budget, I want to be told **before** the plan is finalized — with the real options (shorter trip, simpler stays, different destination, higher budget) — so I decide the trade-off, not the planner.
+19. As a traveler who asked for **luxury**, I want the planner to tell me when luxury doesn't fit my budget rather than quietly booking me into budget stays, so my stated style is never silently overridden.
+20. As a traveler choosing between routes, I want options ranked by how well they fit my budget (best fit first, premium alternatives labelled as such), so popularity never outranks affordability.
+21. As a traveler reading the estimate, I want honest **rounded ranges** with a stated **confidence level and its reason** — never a falsely exact ₹48,327 — so I can trust the numbers exactly as far as the planner does.
+22. As a traveler, I want every plan to carry a clear **budget feasibility verdict** (fits / slightly above / not realistic) with suggested adjustments, so I always know where I stand without asking.
 
 ## What "good" feels like
 

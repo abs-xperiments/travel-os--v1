@@ -32,6 +32,18 @@ stage 8. Real inputs, expected results.
 - **Trip spans two months:** "Dec 28 to Jan 4" → expected: both months assessed; if they differ, the more cautious verdict leads, with a note on which part of the trip it affects.
 - **Season data unavailable:** an obscure destination where research finds nothing solid about seasons → expected: **no bluffed advisory** — plan proceeds normally and the weather section honestly says seasonal conditions couldn't be confirmed.
 
+## Budget as a constraint (added 2026-06-06, Phase A)
+
+- **Fits after economizing:** ₹50,000/person, 5 days, balanced — first assembly with mid-tier stays lands slightly over → expected: the engine **automatically uses budget-tier stays**, the final estimate lands within ₹50k, the recommended stay shown first is the affordable one, and a one-line note says the stay tier was chosen to fit the budget. **No advisory needed.**
+- **Can't fit — advisory:** a trip whose realistic floor is well above the budget even at budget-tier stays (e.g. ₹50k for a trip estimating ₹72–80k) → expected: **before** presenting it as final, a clear advisory — estimate range vs budget, plus the levers (fewer days / simpler stays / different destination / raise budget) — and the question "want me to optimize, or keep it as is?" **Wait for the answer.**
+- **User accepts over-budget:** after that advisory the user says "keep it anyway" → expected: full plan presented immediately with the honest estimate; **no re-warning**.
+- **Luxury conflict:** interests include **luxury**, budget ₹30,000 for 5-day Goa → expected: **no silent downgrade to budget stays** — an advisory naming what luxury actually costs there, asking whether to adjust budget, style, or destination.
+- **Budget-ranked circuits:** "6 days in Kerala, ₹30,000/person" → expected: routes presented **best-budget-fit first**, each labelled (e.g. "fits your budget" / "a stretch" / "premium"), not popularity-ordered.
+- **Generous budget:** ₹2,00,000/person for the same trip → expected: no pointless economizing — mid/premium stays recommended, headroom mentioned, still honest estimates.
+- **Honest presentation (any plan):** the budget shows a **rounded range** as the primary figure (never "₹18,835"), a confidence level (high/medium/low) **with its reason**, the ✓/⚠/❌ feasibility verdict, and a short "based on / varies with" note.
+- **Flight question:** "how much will flights cost?" → expected: a typical-pattern **range** ("usually ₹12,000–₹18,000 return for this route and month"), explicitly an estimate — never an exact fare.
+- **No month given (flexible):** estimate still produced → expected: confidence drops (month unknown → wider seasonal swing) and the reason says so.
+
 ## Done = all scenarios pass
 
 When every scenario here behaves as written, V1 works. Add new cases as we discover them,
