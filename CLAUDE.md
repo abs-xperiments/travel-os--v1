@@ -213,6 +213,12 @@ We deploy to Railway with the **Railway CLI** (full walkthrough in `docs/deploy.
 - [ ] `ruff check` and `ruff format` clean
 - [ ] `pyright` reports 0 errors
 - [ ] tests pass (`uv run pytest`; run `-m integration` if you touched a live service)
+- [ ] **scenario validation passes** for any change to agent behavior or planning output:
+      run the relevant `docs/scenarios.md` cases LIVE and compare against the documented
+      expectations. Tests passing ≠ the travel advice being correct — one cycle found 4 real
+      traveler-facing bugs that 60+ green tests missed (see "Scenario Validation" in
+      `docs/policy.md`). New feature → write its scenarios BEFORE implementing. A
+      personalization feature must produce VISIBLY different output, or it failed.
 - [ ] the relevant `docs/` file reflects the new behavior
 - [ ] `journal.md` has an entry if anything non-obvious was decided or learned
 - [ ] committed, with a message explaining *why*

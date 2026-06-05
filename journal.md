@@ -583,3 +583,18 @@ reason, transport as a labelled range only, and the plan visibly leaning local. 
 constraint phases live in one coherent release. main fast-forwarded 59adcec→7fd1ab5 and pushed
 (user-authorized; covers seasonality + Phase A + Phase B). Prod = build/tripos-v1 = main.
 Next: Phase C — compact structured intake (HTMX form composing the first chat message).
+
+## 2026-06-06 05:30 — Scenario validation codified as a permanent, project-wide release gate
+User elevated the lesson of this cycle into engineering policy: testing = three layers
+(unit: does the code work / integration: do the modules compose / scenario validation: would a
+REAL TRAVELER consider this correct and useful). Layer 3 is a MANDATORY release gate, not QA —
+the 4 live-caught bugs (dropped enrichment slice; READY-vs-advisory prompt conflict; flight
+fares from model memory; "no forts" plural miss) were all traveler-experience failures
+invisible to 60+ green tests. Codified in THREE places, each chosen deliberately:
+docs/policy.md (permanent section, fenced as ENGINEERING principle so it never enters the
+system prompt — policy.md is otherwise the agent rulebook), CLAUDE.md Definition of Done (a
+new mandatory checkbox: run the relevant scenarios LIVE for any behavior change; scenarios
+BEFORE implementation for new features), and docs/scenarios.md preamble (formally the Layer-3
+registry). Bar for personalization features: output must VISIBLY differ from the
+unpersonalized output or the feature failed. Core principle: the advice the traveler receives
+IS the product.

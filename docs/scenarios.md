@@ -3,6 +3,13 @@
 **Stage 3 — Concrete end-to-end walkthroughs.** These become the test checklist for
 stage 8. Real inputs, expected results.
 
+**This file is Layer 3 of the TripOS quality model** (unit → integration → **scenario
+validation**; see the permanent "Scenario Validation Is A First-Class Quality Gate" section in
+`policy.md`). Running these cases LIVE and comparing against the written expectations is a
+**mandatory release gate**, not optional QA — every new capability adds its scenarios here
+**before** implementation, and a feature isn't complete until they pass against the real
+system, whatever the automated tests say.
+
 ## Happy path
 
 **Scenario: Priya plans a family trip to a known destination.**
