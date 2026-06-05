@@ -22,11 +22,14 @@ _EXTRACTOR_PROMPT = """\
 You convert researched travel notes into a structured Destination for a trip planner.
 Rules:
 - Use ONLY real, verifiable places named in the notes — never invent an attraction.
-- Provide 6-10 attractions. For each: a realistic duration_hours; indoor true/false; a `base`
+- Provide 10-12 attractions with a genuine MIX: the famous icons AND lesser-known local
+  favourites / hidden gems, so the planner can serve both first-timers and "non-touristy"
+  travelers. For each: a realistic duration_hours; indoor true/false; a `base`
   = the town/area/neighbourhood it sits in (group nearby ones under the same base so they can
   be clustered); honest suitable_for_seniors and child_friendly; photography_value,
-  adventure_level and worth_visiting on 1-10; best_time one of "early morning","morning",
-  "afternoon","evening".
+  adventure_level and worth_visiting on 1-10; popularity on 1-10 (10 = world-famous icon,
+  1 = local secret — score honestly; hidden gems can still have HIGH worth_visiting);
+  best_time one of "early morning","morning","afternoon","evening".
 - good_for: the travel styles this place genuinely suits (from the allowed set).
 - state/region: the province/region and broader area; bases: realistic places to stay;
   nearest_railhead and nearest_airport as best known (use "Unknown" if truly unclear).
@@ -50,10 +53,12 @@ class WebDestinationProvider:
             return None  # can't verify it exists — the only legitimate "can't plan" case
 
         info = await research(
-            f"Concise travel guide for {place.display_name}. List the top ~8 real attractions "
-            f"(what each is, ideal hours to spend, indoor or outdoor, who it suits), the best "
-            f"seasons to visit, how to get around, the nearest airport and railway station, and "
-            f"notable local food. Real, verifiable places only."
+            f"Concise travel guide for {place.display_name}. List ~12 real attractions — BOTH "
+            f"the famous must-sees AND lesser-known local favourites / hidden gems that "
+            f"residents recommend (what each is, ideal hours to spend, indoor or outdoor, who "
+            f"it suits, how touristy vs local it is), the best seasons to visit, how to get "
+            f"around, the nearest airport and railway station, and notable local food. Real, "
+            f"verifiable places only."
         )
 
         result = await _extractor.run(

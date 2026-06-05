@@ -33,6 +33,10 @@ how TripOS should fail **gracefully and honestly** instead.
 | Estimate shown with **falsely precise endpoints** ("₹18,835–₹25,715") | high / mild | Round range endpoints to honest increments (₹19,000–₹26,000); the range is the PRIMARY figure, the point estimate is internal. |
 | Model **invents a flight fare** from memory ("flights run ₹13,842") | high / bad | Flights/transport are stated ONLY as typical-pattern ranges ("typically ₹12,000–₹18,000 return"), labelled as estimates — an exact fare requires a live source (future module). |
 | **Confidence theater** — a confidence % that doesn't reflect what's actually known | medium / bad | Confidence = high/medium/low derived from real knowledge state (month known, stay prices retrieved vs placeholder, destination verified) with the reason stated. |
+| **Personalization theater** — claiming "hidden-gem curation" when the data has no popularity info (curated/old-cache destinations) | medium / bad | The preference only biases stops whose popularity is KNOWN; when it's mostly unknown, don't claim the plan was hidden-gem-optimized — apply it where possible and stay honest. |
+| "Hidden gems" surfaces **obscure-but-mediocre** stops | medium / mild | Quality floor stays: `worth_visiting` still dominates the score — offbeat biases AMONG good stops, it never replaces good with bad. |
+| The **avoid filter over-matches** ("no forts" also kills the Fort Kochi neighbourhood walk) | low / mild | Match avoid terms against attraction name + description only (not bases/areas); the traveler can always ask to re-add a stop. |
+| Preference **misread** (sarcasm, ambiguity) or both extremes asked at once | low / mild | Default to `balanced`; explicit named requests always win over the general preference. |
 
 ## Hard rules (things the agent must never do)
 

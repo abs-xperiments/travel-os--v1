@@ -102,6 +102,19 @@ def test_budget_compatibility_thresholds():
     assert budget_compatibility(None, 30000) == "unknown"
 
 
+async def test_build_trip_rejects_unknown_popularity_pref_without_network():
+    out = await build_trip(
+        destination="Munnar",
+        start_city="Chennai",
+        days=3,
+        group_type="couple",
+        interests=["nature"],
+        budget=20000,
+        popularity_pref="super-hidden",  # not a valid value
+    )
+    assert "error" in out
+
+
 def test_parse_date_accepts_iso_and_never_raises():
     # Dates are an optional nicety (stored for future booking) — junk must not break a build.
     assert _parse_date("2026-12-20") == date(2026, 12, 20)

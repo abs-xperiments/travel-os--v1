@@ -33,7 +33,12 @@ it whenever they ask.
    - **Transport** — recommend one option + a couple of alternatives.
    - **Accommodation** — chosen by base/cluster to cut travel time.
    - **Food** — meals plan respecting the food preference.
-   - **Attractions** — grouped by base to reduce backtracking; ordered sensibly.
+   - **Attractions** — grouped by base to reduce backtracking; ordered sensibly. **Preferences
+     constrain the picks:** "non-touristy / hidden gems / local" deprioritizes famous icons
+     (without ever sacrificing quality — offbeat biases among *good* stops); "classic
+     highlights" leads with them; "no X" removes X outright; an explicitly named place is
+     always honoured over the general preference. Apply only where popularity data exists —
+     never claim hidden-gem curation that didn't happen.
    - **Budget** — itemized (transport / stay / food / activities / misc), shown as a **range with
      rounded endpoints** (₹45,000–₹55,000, never ₹48,327 — false precision destroys trust), a
      **confidence level** (high / medium / low, derived from what's actually known: month given?

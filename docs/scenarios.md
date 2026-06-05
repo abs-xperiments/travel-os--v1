@@ -44,6 +44,14 @@ stage 8. Real inputs, expected results.
 - **Flight question:** "how much will flights cost?" → expected: a typical-pattern **range** ("usually ₹12,000–₹18,000 return for this route and month"), explicitly an estimate — never an exact fare.
 - **No month given (flexible):** estimate still produced → expected: confidence drops (month unknown → wider seasonal swing) and the reason says so.
 
+## Preferences as constraints (added 2026-06-06, Phase B)
+
+- **Non-touristy Paris:** "4 days in Paris in May, non-touristy — hidden gems and local life. Couple, ₹1,50,000/person, food + photography." → expected: the itinerary **leads with lesser-known neighbourhoods, markets, viewpoints**; Eiffel Tower / Louvre don't headline; the presentation says the plan was shaped for hidden-gem character.
+- **Classic first-timer:** "First time in Paris — the classic highlights please." → expected: icons (Eiffel, Louvre) front and centre; no "personalization" hiding them.
+- **Avoid list:** "Plan Jaipur, but no forts please." → expected: no fort stops anywhere in the plan; everything else normal.
+- **Mixed preference:** "Hidden-gem Agra, but obviously include the Taj Mahal." → expected: Taj is in (explicit request wins), the rest of the plan leans offbeat.
+- **Preference on a curated destination (no popularity data, e.g. Munnar):** → expected: plan still builds; preference applied only where data allows; **no claim** of hidden-gem optimization that didn't happen.
+
 ## Done = all scenarios pass
 
 When every scenario here behaves as written, V1 works. Add new cases as we discover them,

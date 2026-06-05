@@ -26,6 +26,10 @@
 20. As a traveler choosing between routes, I want options ranked by how well they fit my budget (best fit first, premium alternatives labelled as such), so popularity never outranks affordability.
 21. As a traveler reading the estimate, I want honest **rounded ranges** with a stated **confidence level and its reason** — never a falsely exact ₹48,327 — so I can trust the numbers exactly as far as the planner does.
 22. As a traveler, I want every plan to carry a clear **budget feasibility verdict** (fits / slightly above / not realistic) with suggested adjustments, so I always know where I stand without asking.
+23. As a traveler who asks for **non-touristy / hidden gems / local experiences**, I want the itinerary to visibly lead with lesser-known places (not the Eiffel-Tower checklist), so the plan matches the trip I actually described.
+24. As a first-time visitor who wants the **classic highlights**, I want the icons front and centre, so "personalization" never hides what I came for.
+25. As a traveler who says **"no X please"** (temples, museums, malls…), I want those stops simply absent from my plan, so I don't have to edit them out one by one.
+26. As a traveler mixing preferences ("hidden gems, but include the Taj Mahal"), I want explicit requests honoured **on top of** my general preference, so the two never fight.
 
 ## What "good" feels like
 

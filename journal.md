@@ -557,3 +557,21 @@ rounded range, "Confidence: High —" with reason; Dubai ₹20k Jan → advisory
 4 levers, one question, NO plan); Udaipur luxury ₹30k → conflict advisory (palace-stay costs,
 budget-up / boutique-instead / shorter — no silent downgrade). 60 offline tests, ruff+pyright
 clean. Next: Phase B (preferences as constraints), Phase C (structured intake).
+
+## 2026-06-06 04:50 — Phase B built & live-verified: preferences are now constraints
+Two-layer pattern again (LLM judges phrasing, deterministic code applies): TripBrief gains
+popularity_pref (iconic/balanced/offbeat) + avoid[] (hard filter) + must_include[] (beats every
+bias incl. avoid); Attraction gains popularity 1-10 (None=unknown→neutral, NO personalization
+theater — prompt forbids claiming hidden-gem curation when data is missing). Selector: ±0.8/pt
+popularity bonus centred on 5 (quality floor: worth_visiting still dominates), avoid matched
+on name+description, musts seeded first. Retrieval: extraction now returns 10-12 attractions
+as a genuine icon+hidden-gem MIX with popularity scored; knowledge_cache rows versioned
+internally (id@v2 — destination.id stays clean) so old icon-only cached destinations refetch.
+LIVE-CAUGHT BUG #4: "no FORTS" (plural) didn't match "Amber Fort" (singular) — filter silently
+missed, model patched around it in text and LEAKED VOICE ("the planner sneaked a couple of
+forts in"). Fix: plural normalization in _matches_any (strip one trailing 's'; safe under
+substring matching) + prompt insurance (never narrate corrections). Verified live: non-touristy
+Paris leads with Coulée Verte/Buttes-Chaumont/covered passages, icons deprioritized (Eiffel
+survives as ONE dusk photo stop for a photography couple — soft bias, not a ban, exactly as
+designed); Jaipur "no forts" → zero forts, zero internals mentioned. 67 offline tests.
+Remaining: Phase C (structured intake form).

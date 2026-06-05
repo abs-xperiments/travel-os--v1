@@ -23,6 +23,11 @@ that, as plain logic, so the choice is consistent and explainable.
    When the travel month calls for shelter (monsoon, extreme heat — the planner passes
    `prefer_indoor=True`), indoor stops get a **soft bonus**: they out-rank comparable outdoor
    ones, but a truly outstanding outdoor stop can still make the cut. It's a bias, not a ban.
+   The brief's **preferences constrain the picks** the same way: `popularity_pref` re-ranks
+   stops whose popularity is known (offbeat favours local secrets, iconic favours the famous —
+   unknown popularity stays neutral, no fake personalization); `avoid` terms are a **hard
+   filter** (plural-normalized: "no forts" catches "Amber Fort"); `must_include` names are
+   seeded first and beat every bias, including avoid.
 2. **Sorts** attractions best-first.
 3. **Adds them one by one** — but before adding each, it asks `trip_feasibility_checker`
    "does the trip still fit?" and stops adding once it's full. This is the key idea: it can

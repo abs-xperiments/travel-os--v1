@@ -18,6 +18,15 @@ from agent.tripos.models import Destination
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 DEFAULT_MAX_AGE_DAYS = 60
 
+# Bump when the extraction payload grows (v2 = attraction popularity + icon/hidden-gem mix).
+# The version lives in the ROW KEY only — destination.id stays clean — so pre-bump rows are
+# simply bypassed and age out, instead of pinning the old shape for up to 60 days.
+_SCHEMA_VERSION = "v2"
+
+
+def _row_id(destination_id: str) -> str:
+    return f"{destination_id}@{_SCHEMA_VERSION}"
+
 
 async def init_db() -> list[str]:
     """Create the cache table on startup (runs migrations once). Returns files applied."""
@@ -29,7 +38,7 @@ async def get(destination_id: str, max_age_days: int = DEFAULT_MAX_AGE_DAYS) -> 
     row = await db.fetchrow(
         "SELECT knowledge FROM tripos_destination_cache "
         "WHERE id = $1 AND fetched_at > now() - make_interval(days => $2::int)",
-        destination_id,
+        _row_id(destination_id),
         max_age_days,
     )
     return Destination.model_validate_json(row["knowledge"]) if row else None
@@ -42,7 +51,7 @@ async def put(destination: Destination) -> None:
         "VALUES ($1, $2, $3, now()) "
         "ON CONFLICT (id) DO UPDATE SET "
         "name = EXCLUDED.name, knowledge = EXCLUDED.knowledge, fetched_at = now()",
-        destination.id,
+        _row_id(destination.id),
         destination.name,
         destination.model_dump_json(),
     )

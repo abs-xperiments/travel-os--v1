@@ -64,6 +64,13 @@ class Attraction(BaseModel):
     adventure_level: int = Field(ge=1, le=10)
     worth_visiting: int = Field(ge=1, le=10, description="Overall 'worth it' score, 1–10.")
     best_time: str = Field(description="When to go, e.g. 'early morning'.")
+    popularity: int | None = Field(
+        default=None,
+        ge=1,
+        le=10,
+        description="10 = world-famous icon, 1 = local secret. None = unknown (e.g. curated "
+        "seed data) — preference biasing then simply doesn't apply to this stop.",
+    )
 
 
 class Coordinates(BaseModel):
@@ -189,6 +196,18 @@ class FoodPref(StrEnum):
     no_preference = "no_preference"
 
 
+class PopularityPref(StrEnum):
+    """How the traveler relates to the tourist trail — a planning CONSTRAINT, not a vibe.
+
+    The agent maps phrasing: "non-touristy / hidden gems / local" -> offbeat;
+    "classic highlights / first time / must-sees" -> iconic; unsaid -> balanced.
+    """
+
+    iconic = "iconic"
+    balanced = "balanced"
+    offbeat = "offbeat"
+
+
 class TripBrief(BaseModel):
     """Everything the planner needs to know about what the traveler wants."""
 
@@ -213,6 +232,16 @@ class TripBrief(BaseModel):
     # month; these are the extension point for V2 accommodation booking (which needs dates).
     start_date: date | None = None
     end_date: date | None = None
+    # Phase B personalization — preferences that CONSTRAIN attraction selection.
+    popularity_pref: PopularityPref = PopularityPref.balanced
+    avoid: list[str] = Field(
+        default_factory=list,
+        description='Free-text things to leave out ("temples", "malls") — a hard filter.',
+    )
+    must_include: list[str] = Field(
+        default_factory=list,
+        description="Explicitly requested places — always honoured, they beat every bias.",
+    )
 
 
 class DayPlan(BaseModel):
