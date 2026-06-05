@@ -16,6 +16,10 @@
 10. As a traveler, I want a clean day-by-day final itinerary, so that I can actually follow it on the trip.
 11. As a traveler, I want to save my trip and reopen it later, so that I don't lose my work.
 12. As a traveler, I want to export my trip as a PDF or a shareable link, so that I can send it to my family and travel companions.
+13. As a traveler, I want TripOS to ask *when* I'm travelling and warn me **before planning** if my month is a poor time for that destination (extreme heat, monsoon, cyclones, peak crush), so that I can rethink my timing before I commit.
+14. As a traveler with fixed dates (school holidays, leave already approved), I want TripOS to respect my dates after warning me and **adapt the plan to the season** (indoor-leaning, evening-leaning), so that the trip still works as well as it can.
+15. As a flexible traveler, I want TripOS to recommend the **best months** for my destination when I'm not sure when to go, so that timing becomes an advantage instead of a guess.
+16. As a traveler who knows my exact dates, I want them remembered with my trip, so that booking (when it arrives in a future version) won't have to ask me twice.
 
 ## What "good" feels like
 

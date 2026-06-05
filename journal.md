@@ -420,3 +420,41 @@ on a turn that asked a question (that guard could otherwise cause premature plan
 locally: "Plan a 15-day trip to Dubai" now ASKS (no plan, no tool call); a complete request
 builds. 37 offline tests pass, ruff+pyright clean. User approved both → commit, push, merge to
 build/tripos-v1 + main, deploy to production.
+
+## 2026-06-06 01:17 — Seasonality-aware planning: decisions + doc updates (stage 3–4)
+New feature: treat the travel month as a planning dimension, not an itinerary footnote —
+evaluate suitability BEFORE planning, advise on bad months (with better windows), respect the
+user's final choice, and adapt the itinerary to the season (indoor/evening bias in heat or rain).
+Decisions (user-approved):
+1. GRANULARITY = month + optional exact dates. Seasonality is a month-level phenomenon and V1
+   has nothing that can use day precision (no live forecasts, no booking). BUT exact dates the
+   user volunteers are STORED on the brief as the extension point for V2 accommodation booking
+   (Booking.com-style needs dates at *booking* time, not planning time) — schema ready, zero
+   friction now, no migration later.
+2. TRAVEL MONTH = required-but-skippable. The agent always asks "when are you travelling?";
+   "flexible / not sure" counts as answered → TripOS recommends the best window and plans for it.
+   (Optional would make the whole feature silent for most users.)
+3. KNOWLEDGE SOURCE = retrieval, not model memory. Extend the EXISTING single research call +
+   extraction to also produce a year-round 12-month suitability profile, cached per destination
+   (cache stays destination-keyed; any month answered locally; zero extra web calls). A new
+   check_travel_season tool lets the agent advise BEFORE build_trip; it warms the same cache the
+   build uses, so total cost is unchanged — the fetch just happens earlier.
+Failure-mode rule worth remembering: advisory is best-effort — if research can't confirm the
+season is bad, do NOT bluff a warning (confident wrong advisory < none). Never block on season:
+advise once, then respect the choice and adapt.
+Stage 3–4 docs updated (user_stories 13–16, failure_modes rows + hard rule, 7 seasonality
+scenarios incl. Dubai-in-July and span-two-months, policy step 4 "Assess the season" + Travel
+Context in compose). Build order: models → retrieval profile → advisory tool + prompt →
+season-adaptive plan_trip/attraction_selector → tests + live verify + deploy.
+NOTED (not fixed here): policy.md/user_stories.md/scenarios.md still carry stale V1-region
+language ("South Indian hill stations", Paris out-of-scope) that contradicts the shipped
+worldwide V2 — needs its own doc-sync pass.
+
+## 2026-06-06 01:25 — Trip Comparison promoted to V1, sequenced AFTER seasonality
+User decided Trip Comparison (Plan A/B/C side by side) moves from "deferred to V2" into V1
+scope. Sequencing decision (user-approved): finish + ship seasonality-aware planning first,
+THEN design comparison as its own feature (its own stage 3-4 pass: what gets compared, chat-UX,
+how plans are labelled/stored, side-by-side budget rendering). Why this order: (1) never two
+half-built features at once; (2) the highest-value comparison — same destination across two
+travel windows ("Dubai in July vs December") — literally requires seasonality to exist first.
+User also fixed the stale one-liner in policy.md (dropped "South Indian hill stations").

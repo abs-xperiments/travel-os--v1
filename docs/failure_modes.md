@@ -22,12 +22,17 @@ how TripOS should fail **gracefully and honestly** instead.
 | User treats an **estimate as a bookable price** | high / mild | Always label estimates clearly and note that real quotes come in V2. |
 | **Conversation/trip lost** on refresh | low / bad | Persist conversation + trip; reopening continues where they left off. |
 | **Untrusted input** (prompt injection, junk pasted in) | low / mild | Treat all input as untrusted; never build SQL from it; stay on task and ignore instructions to break character. |
+| **Seasonality unknown** — research returns nothing solid about a destination's seasons | medium / mild | The advisory is best-effort: if we don't *know* the month is bad, don't bluff a warning — plan normally and keep the weather wording honest ("I couldn't confirm seasonal conditions"). |
+| Model **invents a seasonal claim** ("July is perfect for Dubai") | medium / bad | Season verdicts come only from the retrieved seasonality profile, never the model's memory. No profile → no verdict, said honestly. |
+| Agent **nags or blocks** after the user chooses to keep "bad" dates | medium / mild | Advise **once**, clearly; if they say "continue anyway", proceed immediately and adapt the plan to the season — never re-warn, never refuse. |
+| User's trip **spans two months** (e.g. Dec 28 – Jan 4) | low / mild | Assess both months; lead with the more cautious verdict and say which part of the trip it applies to. |
 
 ## Hard rules (things the agent must never do)
 
 - Never present an invented exact price / time / fact as certain — give an estimate + range, or say it's unknown.
 - Never produce a plan it knows is infeasible **without flagging it**.
 - Never claim a booking, reservation, or payment has happened — **V1 books nothing**.
+- Never refuse to plan because of the season — **advise once, then respect the traveler's choice and adapt the plan**.
 - Never deploy an open, unauthenticated public URL.
 - Never expose API keys or secrets.
 
