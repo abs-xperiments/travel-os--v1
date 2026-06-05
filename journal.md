@@ -500,3 +500,11 @@ re-warning. Munnar/January → verdict "excellent", zero friction, builds in the
 correct status progression ("Checking the season…" → "Building your trip…" — the new
 status-on-change streaming). 50 offline tests, ruff+pyright clean. Remaining: deploy (needs
 user approval) + prod smoke.
+
+## 2026-06-06 02:40 — Seasonality SHIPPED to production
+railway up → clean boot. Prod smoke via the live SSE endpoint: Dubai-in-July full brief →
+"Checking the season and weather for your dates…" status, then an advisory-ONLY reply (extreme
+heat, Nov–Mar + Oct recommended, one keep-or-shift question, NO plan built) — exactly the
+designed ADVISING behavior, on the deployed URL. Prod + local share the Neon cache, so the
+dubai:v2 / munnar:v2 profiles were already warm. Feature complete per docs/scenarios.md
+§Seasonality. Next feature (user-decided order): Trip Comparison — own stage 3–4 design pass.
