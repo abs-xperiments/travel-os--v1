@@ -575,3 +575,11 @@ Paris leads with Coulée Verte/Buttes-Chaumont/covered passages, icons depriorit
 survives as ONE dusk photo stop for a photography couple — soft bias, not a ban, exactly as
 designed); Jaipur "no forts" → zero forts, zero internals mentioned. 67 offline tests.
 Remaining: Phase C (structured intake form).
+
+## 2026-06-06 05:10 — Phases A+B DEPLOYED to production; main fast-forwarded
+railway up → clean boot. Prod smoke (live SSE, Munnar ₹22k + hidden-gems ask): rounded range
+₹13,500–18,500, ✅ Fits-comfortably verdict table, "Confidence: High —" with the knowledge-state
+reason, transport as a labelled range only, and the plan visibly leaning local. Both
+constraint phases live in one coherent release. main fast-forwarded 59adcec→7fd1ab5 and pushed
+(user-authorized; covers seasonality + Phase A + Phase B). Prod = build/tripos-v1 = main.
+Next: Phase C — compact structured intake (HTMX form composing the first chat message).
