@@ -17,6 +17,7 @@ from agent.tripos.models import (
     Accommodation,
     Destination,
     Restaurant,
+    SeasonalityProfile,
     TripBrief,
     TripEnrichment,
     WeatherInsight,
@@ -99,3 +100,12 @@ class WebWeatherProvider:
 
     async def insight(self, destination: Destination, brief: TripBrief) -> WeatherInsight | None:
         return (await gather(destination, brief)).weather
+
+
+class WebSeasonalityProvider:
+    name = "web"
+
+    async def profile(
+        self, destination: Destination, brief: TripBrief
+    ) -> SeasonalityProfile | None:
+        return (await gather(destination, brief)).seasonality

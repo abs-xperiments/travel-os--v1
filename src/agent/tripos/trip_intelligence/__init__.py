@@ -36,11 +36,15 @@ async def enrich(destination: Destination, brief: TripBrief) -> TripEnrichment:
     acc = registry.get("accommodation")
     res = registry.get("restaurant")
     wx = registry.get("weather")
+    season = registry.get("seasonality")
     try:
         stays = await acc.search(destination, brief) if acc else []
         restaurants = await res.search(destination, brief) if res else []
         weather = await wx.insight(destination, brief) if wx else None
-        return TripEnrichment(stays=stays, restaurants=restaurants, weather=weather)
+        seasonality = await season.profile(destination, brief) if season else None
+        return TripEnrichment(
+            stays=stays, restaurants=restaurants, weather=weather, seasonality=seasonality
+        )
     except Exception:
         logger.exception("enrichment failed for {} — planning without it", destination.id)
         return TripEnrichment()

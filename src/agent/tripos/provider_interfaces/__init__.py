@@ -20,6 +20,7 @@ from agent.tripos.models import (
     Circuit,
     Destination,
     Restaurant,
+    SeasonalityProfile,
     TripBrief,
     WeatherInsight,
 )
@@ -48,6 +49,21 @@ class WeatherProvider(Protocol):
     async def insight(
         self, destination: Destination, brief: TripBrief
     ) -> WeatherInsight | None: ...
+
+
+@runtime_checkable
+class SeasonalityProvider(Protocol):
+    """Returns a destination's year-round month-by-month suitability profile (or None).
+
+    The ONLY legitimate source for season verdicts and best-window advice — the agent never
+    answers those from model memory.
+    """
+
+    name: str
+
+    async def profile(
+        self, destination: Destination, brief: TripBrief
+    ) -> SeasonalityProfile | None: ...
 
 
 @runtime_checkable

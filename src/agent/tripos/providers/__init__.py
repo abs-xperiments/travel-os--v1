@@ -55,12 +55,14 @@ def register_defaults(reg: ProviderRegistry) -> None:
         from agent.tripos.providers.web_intelligence import (
             WebAccommodationProvider,
             WebRestaurantProvider,
+            WebSeasonalityProvider,
             WebWeatherProvider,
         )
 
         reg.register("accommodation", WebAccommodationProvider())
         reg.register("restaurant", WebRestaurantProvider())
         reg.register("weather", WebWeatherProvider())
+        reg.register("seasonality", WebSeasonalityProvider())
 
     if not reg.get_all("circuit"):
         from agent.tripos.providers.circuits import WebCircuitProvider

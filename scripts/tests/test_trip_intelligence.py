@@ -35,5 +35,8 @@ async def test_enrich_returns_stays_and_restaurants():
         assert all(s.tier in {"budget", "mid", "premium"} for s in enr.stays)
         assert all(s.price_per_night_high >= s.price_per_night_low for s in enr.stays)
         assert enr.restaurants, "expected some restaurant recommendations"
+        assert enr.seasonality is not None and enr.seasonality.months, (
+            "expected a year-round seasonality profile"
+        )
     finally:
-        await db.execute("DELETE FROM tripos_intelligence_cache WHERE key = $1", "munnar")
+        await db.execute("DELETE FROM tripos_intelligence_cache WHERE key = $1", "munnar:v2")

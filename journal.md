@@ -481,3 +481,22 @@ One pass, all offline-green (48 tests). The shape that matters:
   followed by a build in one turn shows honest progress.
 Next: live verify the scenarios (Dubai-in-July advisory; Munnar-in-January no-friction), then
 deploy with user approval.
+
+## 2026-06-06 02:15 — Live verification caught two real bugs; both fixed; all scenarios pass
+Offline-green code failed the live Dubai-in-July scenario TWICE, differently each time:
+1. PROMPT CONFLICT: the READY rule ("build and present in the SAME reply") bulldozed the
+   advisory's "STOP and WAIT" — model advised and built in one turn. Fix: an explicit ADVISING
+   state — the advisory and the plan NEVER share a reply (same medicine as the old ask-vs-build
+   bug), with the exception carved into the READY rule itself so the two can't fight.
+2. DROPPED SLICE: trip_intelligence.enrich() rebuilds TripEnrichment from the per-role
+   providers and silently dropped the new seasonality field — agent always saw "unknown",
+   advisories were no-ops, lean_indoor never fired. The earlier "adapted-looking" Dubai plan
+   was riding on weather advisories alone. Fix: a SeasonalityProvider role (interface +
+   WebSeasonalityProvider + registry), enrich() carries the 4th slice; offline regression test
+   monkeypatches gather() and asserts every slice survives. Lesson in docs/learnings.md.
+Verified live after fixes: Dubai/July → advisory ONLY (best window Nov–Mar, one question, no
+build) → "keep July" → immediate indoor/evening-adapted plan, Travel Context first, no
+re-warning. Munnar/January → verdict "excellent", zero friction, builds in the same turn with
+correct status progression ("Checking the season…" → "Building your trip…" — the new
+status-on-change streaming). 50 offline tests, ruff+pyright clean. Remaining: deploy (needs
+user approval) + prod smoke.
