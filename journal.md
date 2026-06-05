@@ -598,3 +598,16 @@ BEFORE implementation for new features), and docs/scenarios.md preamble (formall
 registry). Bar for personalization features: output must VISIBLY differ from the
 unpersonalized output or the feature failed. Core principle: the advice the traveler receives
 IS the product.
+
+## 2026-06-06 06:00 — Phase C (structured intake) SHELVED: current conversational UX wins
+Explored intake strategies for Phase C before building (form / in-flow chips / rich first
+message / plan-first-ask-later / traveler memory, incl. a 2026-Gen-Z behavioral lens whose
+"perfect" loop = instant draft + tappable assumption chips + shareable output — but that
+requires two-stage sketch→verified planning to beat the 30-60s build latency, and depends on
+an ICP we haven't confirmed). USER DECISION: the current UX is better — keep pure chat.
+Rationale that holds: friction is already engineered down to ~one bullet-list round-trip;
+the advisory moments (season/budget/luxury) ARE the product and only work as conversation;
+one coherent interaction model beats bolted-on surfaces; and we're pre-data. Nothing of
+Phase C reached docs or code, so nothing to unwind. REOPEN TRIGGER: real-user evidence —
+mine tripos_trips transcripts (round-trips per plan, stall/abandon points) if friction
+complaints become concrete. Next queued feature: Trip Comparison (its own stage 3-4 pass).
