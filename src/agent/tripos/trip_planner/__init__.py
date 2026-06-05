@@ -20,12 +20,14 @@ from agent.tripos import (
     trip_feasibility_checker as feasibility,
 )
 from agent.tripos.models import (
+    MONTH_NAMES,
     Accommodation,
     Attraction,
     BudgetBreakdown,
     BudgetEstimate,
     Destination,
     GroupType,
+    MonthAssessment,
     TripBrief,
     TripPlan,
 )
@@ -115,18 +117,31 @@ def _rough_budget(
 
 
 def plan_trip(
-    brief: TripBrief, destination: Destination, stay_per_person_per_night: float | None = None
+    brief: TripBrief,
+    destination: Destination,
+    stay_per_person_per_night: float | None = None,
+    season: MonthAssessment | None = None,
 ) -> TripPlan:
     """Build the full plan for a completed brief and an already-resolved destination.
 
     The destination is resolved upstream (catalog or web retrieval) and injected — there is no
     "unknown destination" case here; this module plans whatever it's given. If a retrieved
-    per-person nightly stay rate is supplied, it refines the accommodation budget.
+    per-person nightly stay rate is supplied, it refines the accommodation budget. If a season
+    assessment for the travel month is supplied, the plan adapts to it (indoor-leaning stop
+    selection in wet/extreme-heat months, and a visible season note on day 1).
     """
-    stops = attraction_selector.select_attractions(destination, brief)
+    prefer_indoor = bool(season and season.lean_indoor)
+    stops = attraction_selector.select_attractions(destination, brief, prefer_indoor=prefer_indoor)
     itinerary = itinerary_builder.build_itinerary(destination, stops, brief.days, brief.pace)
     budget = _rough_budget(brief, stops, stay_per_person_per_night)
     feas = feasibility.check_feasibility(stops, brief.days)
+
+    # Make the adaptation visible on the itinerary itself (chat, print view, PDF alike).
+    if season and brief.travel_month and itinerary.day_plans:
+        note = f"Planned for {MONTH_NAMES[brief.travel_month]} travel — {season.note}"
+        if prefer_indoor:
+            note += " Favouring indoor/sheltered stops; keep outdoor time to mornings/evenings."
+        itinerary.day_plans[0].notes.insert(0, note)
 
     return TripPlan(
         brief=brief,

@@ -32,6 +32,12 @@ real, verifiable places from the notes — never invent one.
   good_for, and a one-line why.
 - weather: a season_label, a short summary, temp range if known, and practical advisories
   (e.g. "Heavy monsoon rain Jun–Sep — favour indoor stops").
+- seasonality: ALL 12 months, each with a rating (excellent|good|acceptable|challenging|
+  not_recommended), a short note giving the why (heat / monsoon / cyclones / crowds / prices),
+  and lean_indoor=true ONLY when plans that month should favour indoor or sheltered stops
+  (heavy rain, extreme heat — crowds alone don't set it). Also best_months (month numbers,
+  the recommended window) and a one-line summary. Base every rating on the notes; if the notes
+  say nothing about a destination's seasons, leave months EMPTY rather than guessing.
 Prices are estimates, not live quotes."""
 
 _extractor = Agent(
@@ -39,9 +45,15 @@ _extractor = Agent(
 )
 
 
+# Bump when the payload shape grows (v2 = seasonality added): a new key bypasses cached rows
+# from before the change — otherwise they'd pin the missing field for the cache's max age.
+_CACHE_KEY_VERSION = "v2"
+
+
 async def gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
-    """Retrieve (and cache) stays + restaurants + weather for a destination. One web fetch."""
-    cached = await intelligence_cache.get(destination.id)
+    """Retrieve (and cache) stays + restaurants + weather + seasonality. One web fetch."""
+    key = f"{destination.id}:{_CACHE_KEY_VERSION}"
+    cached = await intelligence_cache.get(key)
     if cached is not None:
         return TripEnrichment.model_validate_json(cached)
 
@@ -53,7 +65,9 @@ async def gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
         f"real hotels/homestays/resorts, their area, and rough price per night; (2) notable "
         f"RESTAURANTS — vegetarian-friendly, local/authentic and family options, with cuisine "
         f"and rough price level; (3) the best SEASONS to visit and the WEATHER to expect, with "
-        f"advisories. Real, verifiable places only."
+        f"advisories; (4) a MONTH-BY-MONTH view of the whole year — for each month, how "
+        f"suitable it is to visit (weather, rain/heat, crowds, prices) and which months are "
+        f"best. Real, verifiable places only."
     )
     interests = ", ".join(s.value for s in brief.interests)
     result = await _extractor.run(
@@ -62,7 +76,7 @@ async def gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
         f"Researched notes:\n{info.text}\n\nProduce the structured enrichment."
     )
     enriched = result.output
-    await intelligence_cache.put(destination.id, enriched.model_dump_json())
+    await intelligence_cache.put(key, enriched.model_dump_json())
     return enriched
 
 

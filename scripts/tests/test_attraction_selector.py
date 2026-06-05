@@ -42,6 +42,19 @@ def test_more_days_allow_at_least_as_many_stops():
     assert len(long) >= len(short)
 
 
+def test_prefer_indoor_biases_selection_toward_indoor_stops():
+    # The season adaptation: in a wet/extreme-heat month, indoor stops should out-rank
+    # comparable outdoor ones — a soft bias, so the result must still be feasible.
+    munnar = catalog.get_destination("munnar")
+    assert munnar is not None
+    brief = _brief(days=2)  # a short trip forces real choices between stops
+    normal = attraction_selector.select_attractions(munnar, brief)
+    sheltered = attraction_selector.select_attractions(munnar, brief, prefer_indoor=True)
+    indoor = lambda stops: sum(1 for a in stops if a.indoor)  # noqa: E731
+    assert indoor(sheltered) >= indoor(normal)
+    assert feasibility.check_feasibility(sheltered, 2).realistic
+
+
 def test_seniors_selection_excludes_unsuitable_stops_and_stays_feasible():
     munnar = catalog.get_destination("munnar")
     assert munnar is not None

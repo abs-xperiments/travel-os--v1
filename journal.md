@@ -458,3 +458,26 @@ how plans are labelled/stored, side-by-side budget rendering). Why this order: (
 half-built features at once; (2) the highest-value comparison — same destination across two
 travel windows ("Dubai in July vs December") — literally requires seasonality to exist first.
 User also fixed the stale one-liner in policy.md (dropped "South Indian hill stations").
+
+## 2026-06-06 01:50 — Seasonality steps 3–5 built: retrieval profile, advisory tool, adaptive plans
+One pass, all offline-green (48 tests). The shape that matters:
+- RETRIEVAL: extended the EXISTING combined research call + extractor to also produce a
+  12-month SeasonalityProfile (rating + note + lean_indoor per month, best_months). Zero extra
+  web calls. Cache key versioned to "<id>:v2" — pre-seasonality prod cache rows would otherwise
+  pin seasonality=None for up to 30 days; new key bypasses them, old rows age out via TTL.
+- JUDGMENT vs MECHANICS split: the extractor LLM decides lean_indoor (does this month warrant
+  sheltered plans? rain/heat yes, crowds no); deterministic code merely applies it
+  (attraction_selector prefer_indoor = +2.5 soft bonus for indoor stops — bias, not ban).
+- ADVISORY: new check_travel_season(destination, month?) agent tool → trip_intelligence
+  .season_profile() → same cached gather(); advising BEFORE build costs nothing extra (the
+  fetch just happens earlier; build then hits cache). month omitted = best-window mode for
+  flexible travelers. System prompt gained the SEASON CHECK state (advise once on
+  challenging/not_recommended then WAIT; no friction on acceptable+; never bluff on unknown)
+  and travel month in the REQUIRED list ("flexible" counts as answered).
+- ADAPTATION: plan_trip(..., season=) biases selection + stamps a "Planned for July travel —…"
+  note on day 1 (visible in chat AND print/PDF). Circuits: each leg adapts to ITS OWN profile.
+- STREAMING FIX while here: status note is now per-tool ("Checking the season…" vs "Building
+  your trip…") and re-emits on CHANGE (chat.html replaces status text), so a season-check
+  followed by a build in one turn shows honest progress.
+Next: live verify the scenarios (Dubai-in-July advisory; Munnar-in-January no-friction), then
+deploy with user approval.

@@ -14,11 +14,14 @@ so the AI never has to do the planning maths itself (which it would get wrong).
 ## What it does, step by step
 1. Receives an already-resolved `Destination` (from `destination_intelligence` — catalog OR
    web retrieval). It does not look anything up and never refuses: it plans whatever it's given.
-2. Asks `attraction_selector` for the right stops in the right order.
+2. Asks `attraction_selector` for the right stops in the right order — passing the seasonal
+   `prefer_indoor` bias when the travel month's assessment (`season`, optional) calls for it.
 3. Asks `itinerary_builder` to spread them across the days.
 4. Estimates the cost via `budget_estimator`.
 5. Runs `trip_feasibility_checker` for an overall realistic / not-realistic verdict.
-6. Packs all of that into one `TripPlan` and returns it.
+6. If a season assessment was given, stamps a visible note on day 1 ("Planned for July
+   travel — …") so the adaptation shows in chat, the print view, and the PDF alike.
+7. Packs all of that into one `TripPlan` and returns it.
 
 ## ⚠️ About the budget numbers (important)
 Right now the cost figures use **placeholder baselines** (e.g. ₹3,000/night, ₹1,200/day for

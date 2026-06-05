@@ -1,8 +1,9 @@
-# `trip_intelligence` — add stays, restaurants & weather to a plan
+# `trip_intelligence` — add stays, restaurants, weather & seasonality to a plan
 
 ## In one sentence
 Given a destination and the traveler's brief, it returns recommended **places to stay**,
-**places to eat**, and a **weather/season note** — for anywhere in the world.
+**places to eat**, a **weather/season note**, and a **year-round month-by-month suitability
+profile** — for anywhere in the world.
 
 ## Why it exists
 A bare itinerary (just attractions + budget) isn't a full trip. A real travel consultant also
@@ -17,6 +18,10 @@ results into a `TripEnrichment` (stays + restaurants + weather). Today all three
 `intelligence_cache`), so asking for all three costs one fetch. Tomorrow, Booking / Google
 Places / Open-Meteo can replace any one of them by registering under that role — no change here.
 
+`season_profile(name, brief)` exposes just the seasonality slice by destination NAME — the
+agent's `check_travel_season` tool uses it to advise on a travel month BEFORE a build. It
+rides the same cached fetch the build uses, so advising early costs no extra retrieval.
+
 ## Best-effort by design
 It **never fails the trip**. If retrieval errors out, it returns an empty `TripEnrichment` and
 the plan is still produced (just without the extras). Stays/restaurants/weather are always
@@ -29,6 +34,7 @@ Live inventory/booking is a future upgrade behind the same interfaces.
 ## How to debug it
 - **No stays/restaurants showing:** check the web retrieval in
   `providers/web_intelligence.py` and that the providers are registered (web startup logs).
-- **Stale or wrong recs:** clear the cache row (`tripos_intelligence_cache`, key = destination
-  id) to force a refetch — see `intelligence_cache`.
+- **Stale or wrong recs:** clear the cache row (`tripos_intelligence_cache`, key =
+  `<destination-id>:v2` — versioned when the payload shape grew) to force a refetch — see
+  `intelligence_cache`.
 - **Live test:** `uv run pytest -m integration scripts/tests/test_trip_intelligence.py`.

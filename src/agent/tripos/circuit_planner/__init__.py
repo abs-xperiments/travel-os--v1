@@ -41,7 +41,15 @@ async def _build_leg(dest_name: str, nights: int, brief: TripBrief) -> _LegResul
         return None
     leg_brief = brief.model_copy(update={"days": max(nights, 1), "destination_id": destination.id})
     stay_rate = trip_planner.per_person_nightly(enrichment.stays)
-    leg_plan = trip_planner.plan_trip(leg_brief, destination, stay_per_person_per_night=stay_rate)
+    # Each leg adapts to ITS OWN season for the travel month (profiles differ per destination).
+    season = (
+        enrichment.seasonality.for_month(brief.travel_month)
+        if enrichment.seasonality and brief.travel_month
+        else None
+    )
+    leg_plan = trip_planner.plan_trip(
+        leg_brief, destination, stay_per_person_per_night=stay_rate, season=season
+    )
     return destination, nights, leg_plan, enrichment
 
 

@@ -43,9 +43,17 @@ def _suits_group(attraction: Attraction, group: GroupType) -> bool:
     return not (too_strenuous_for_seniors or not_for_children)
 
 
-def _score(attraction: Attraction, brief: TripBrief) -> float:
+# Soft seasonal bias, not a hard filter: in a wet/extreme-heat month an indoor stop gets a
+# leg-up, but a truly outstanding outdoor stop can still out-score it and be kept.
+_INDOOR_SEASON_BONUS = 2.5
+
+
+def _score(attraction: Attraction, brief: TripBrief, prefer_indoor: bool) -> float:
     """Higher = better fit. Starts from the 'worth visiting' score, adds interest bonuses."""
-    return float(attraction.worth_visiting) + _interest_bonus(attraction, brief.interests)
+    score = float(attraction.worth_visiting) + _interest_bonus(attraction, brief.interests)
+    if prefer_indoor and attraction.indoor:
+        score += _INDOOR_SEASON_BONUS
+    return score
 
 
 def _ordering_key(attraction: Attraction) -> tuple[str, int, int]:
@@ -57,10 +65,16 @@ def _ordering_key(attraction: Attraction) -> tuple[str, int, int]:
     )
 
 
-def select_attractions(destination: Destination, brief: TripBrief) -> list[Attraction]:
-    """Pick the stops that best fit `brief` and still fit in `brief.days`, ordered for flow."""
+def select_attractions(
+    destination: Destination, brief: TripBrief, *, prefer_indoor: bool = False
+) -> list[Attraction]:
+    """Pick the stops that best fit `brief` and still fit in `brief.days`, ordered for flow.
+
+    `prefer_indoor` is the season adaptation: set when the travel month calls for sheltered
+    plans (monsoon, extreme heat) so indoor stops out-rank comparable outdoor ones.
+    """
     suitable = [a for a in destination.attractions if _suits_group(a, brief.group_type)]
-    ranked = sorted(suitable, key=lambda a: _score(a, brief), reverse=True)
+    ranked = sorted(suitable, key=lambda a: _score(a, brief, prefer_indoor), reverse=True)
 
     chosen: list[Attraction] = []
     for attraction in ranked:

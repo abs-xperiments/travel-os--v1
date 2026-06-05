@@ -10,7 +10,15 @@ the streaming smoke.
 
 from __future__ import annotations
 
-from agent.agents.tripos_planner import _PROMISE_RE, build_trip, list_destinations
+from datetime import date
+
+from agent.agents.tripos_planner import (
+    _PROMISE_RE,
+    _parse_date,
+    build_trip,
+    check_travel_season,
+    list_destinations,
+)
 
 
 def test_promise_regex_triggers_on_build_promises_not_on_questions():
@@ -41,3 +49,29 @@ async def test_build_trip_rejects_unknown_group_type_without_network():
         budget=20000,
     )
     assert "error" in out
+
+
+async def test_build_trip_rejects_impossible_month_without_network():
+    # travel_month is validated on the brief (1-12) before any resolve — offline error path.
+    out = await build_trip(
+        destination="Munnar",
+        start_city="Chennai",
+        days=3,
+        group_type="couple",
+        interests=["nature"],
+        budget=20000,
+        travel_month=13,
+    )
+    assert "error" in out
+
+
+async def test_check_travel_season_rejects_impossible_month_without_network():
+    out = await check_travel_season(destination="Dubai", month=0)
+    assert "error" in out
+
+
+def test_parse_date_accepts_iso_and_never_raises():
+    # Dates are an optional nicety (stored for future booking) — junk must not break a build.
+    assert _parse_date("2026-12-20") == date(2026, 12, 20)
+    assert _parse_date("next friday") is None
+    assert _parse_date(None) is None

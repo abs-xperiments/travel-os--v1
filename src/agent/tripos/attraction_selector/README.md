@@ -20,6 +20,9 @@ that, as plain logic, so the choice is consistent and explainable.
    anything marked `suitable_for_seniors: false` is dropped; for `family_with_children`,
    anything not `child_friendly`. Comfort for seniors/children is a promise, so the score
    can never sneak an unsuitable stop back in.
+   When the travel month calls for shelter (monsoon, extreme heat — the planner passes
+   `prefer_indoor=True`), indoor stops get a **soft bonus**: they out-rank comparable outdoor
+   ones, but a truly outstanding outdoor stop can still make the cut. It's a bias, not a ban.
 2. **Sorts** attractions best-first.
 3. **Adds them one by one** — but before adding each, it asks `trip_feasibility_checker`
    "does the trip still fit?" and stops adding once it's full. This is the key idea: it can
@@ -43,4 +46,6 @@ logic — it leans on them. That's why those were built first.
 
 ## What it deliberately does NOT do
 It doesn't split stops across specific days (that's `itinerary_builder`) and it doesn't
-think about weather or season (other modules). It only answers "which stops, what order".
+*decide* what the season means — it only applies the `prefer_indoor` verdict handed to it
+(the judgment comes from the retrieved seasonality profile, upstream). It answers "which
+stops, what order".

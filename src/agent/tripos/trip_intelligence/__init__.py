@@ -16,7 +16,7 @@ import asyncio
 from loguru import logger
 
 from agent.tripos import destination_intelligence, intelligence_cache, providers
-from agent.tripos.models import Destination, TripBrief, TripEnrichment
+from agent.tripos.models import Destination, SeasonalityProfile, TripBrief, TripEnrichment
 from agent.tripos.provider_interfaces import slugify
 from agent.tripos.provider_registry import registry
 
@@ -44,6 +44,16 @@ async def enrich(destination: Destination, brief: TripBrief) -> TripEnrichment:
     except Exception:
         logger.exception("enrichment failed for {} — planning without it", destination.id)
         return TripEnrichment()
+
+
+async def season_profile(destination_query: str, brief: TripBrief) -> SeasonalityProfile | None:
+    """The year-round seasonality profile for a destination NAME — for advising before a build.
+
+    Rides the same cached enrichment fetch the build uses, so checking the season early costs
+    nothing extra overall: the first caller pays the one web fetch, the build then hits cache.
+    Returns None when no solid seasonal data was retrieved (then: no advisory, never a bluff).
+    """
+    return (await enrich(_stub_for(destination_query), brief)).seasonality
 
 
 def _stub_for(query: str) -> Destination:

@@ -255,6 +255,11 @@ class MonthAssessment(BaseModel):
     month: int = Field(ge=1, le=12)
     rating: MonthRating
     note: str = Field(description="Short reason, e.g. 'peak monsoon — heavy daily rain'.")
+    lean_indoor: bool = Field(
+        default=False,
+        description="True if plans this month should favour indoor/sheltered stops "
+        "(heavy rain, extreme heat) — crowds alone don't set this.",
+    )
 
 
 class SeasonalityProfile(BaseModel):

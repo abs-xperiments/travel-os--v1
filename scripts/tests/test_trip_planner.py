@@ -10,7 +10,15 @@ from __future__ import annotations
 
 from agent.tripos import destination_catalog as catalog
 from agent.tripos import trip_planner
-from agent.tripos.models import Accommodation, GroupType, Pace, TravelStyle, TripBrief
+from agent.tripos.models import (
+    Accommodation,
+    GroupType,
+    MonthAssessment,
+    MonthRating,
+    Pace,
+    TravelStyle,
+    TripBrief,
+)
 
 
 def _priya_brief() -> TripBrief:
@@ -74,6 +82,23 @@ def test_per_person_nightly_prefers_mid_tier_and_halves_room_price():
     ]
     assert trip_planner.per_person_nightly(stays) == 2000  # mid avg room 4000, /2 occupancy
     assert trip_planner.per_person_nightly([]) is None
+
+
+def test_season_assessment_adapts_the_plan_and_stamps_a_visible_note():
+    munnar = catalog.get_destination("munnar")
+    assert munnar is not None
+    brief = _priya_brief().model_copy(update={"travel_month": 7})
+    monsoon = MonthAssessment(
+        month=7, rating=MonthRating.challenging, note="Peak monsoon.", lean_indoor=True
+    )
+    plan = trip_planner.plan_trip(brief, munnar, season=monsoon)
+    # The adaptation is visible on the itinerary itself (chat, print view, PDF alike).
+    day1 = plan.itinerary.day_plans[0].notes
+    assert any("July" in n and "Peak monsoon." in n for n in day1)
+    assert any("indoor" in n for n in day1)
+    # No month / no season -> no note is invented.
+    bare = trip_planner.plan_trip(_priya_brief(), munnar)
+    assert not any("Planned for" in n for n in bare.itinerary.day_plans[0].notes)
 
 
 def test_retrieved_stay_rate_refines_the_accommodation_budget():
