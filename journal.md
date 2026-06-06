@@ -611,3 +611,43 @@ one coherent interaction model beats bolted-on surfaces; and we're pre-data. Not
 Phase C reached docs or code, so nothing to unwind. REOPEN TRIGGER: real-user evidence —
 mine tripos_trips transcripts (round-trips per plan, stall/abandon points) if friction
 complaints become concrete. Next queued feature: Trip Comparison (its own stage 3-4 pass).
+
+## 2026-06-06 09:00 — V2 Intelligence Upgrade: intent-first orchestration, NO pre-classifier
+Diagnosed why "Suggest homestays in Didupe under ₹10,000" triggers itinerary questions: not a
+routing-intelligence failure but a toolset + prompt-structure one. The system prompt's
+GATHERING/READY slot machine is GLOBAL (it even forbids recommending stays before all trip
+slots are known) and every tool is plan-shaped — the LLM has nothing to route a stays request
+to. DECISION: keep the single agent as the router; no separate intent-classifier LLM call
+(would add latency, cost, and a second source of truth — the agent already routes by tool
+choice). Fix = (1) intent-scoped tools find_stays / find_restaurants / suggest_destinations,
+(2) prompt restructured intent-first with the slot machine nested under PLAN_TRIP only
+(advisory text kept VERBATIM — the READY-vs-advisory conflict bug lived exactly there),
+(3) a dynamic instruction injecting today's date (the agent currently has ZERO date awareness,
+so "I'm leaving today" can't resolve). Load-bearing reuse: trip_intelligence.enrich() already
+retrieves stays/restaurants from one cached web fetch and runs from just a place name
+(_stub_for); its cache key (slug:v2) is the SAME one build_trip uses — so find_stays("Didupe")
+makes a later Didupe trip plan a cache HIT, not extra cost. Scenarios written first
+(scenarios.md "Intent-driven service" section) per the Layer-3 gate; also retired the stale
+"Paris is out of scope" scenario that contradicted worldwide retrieval.
+
+## 2026-06-06 10:30 — V2 built: intent tools + travel context + package split (phases 1-3)
+Shipped the redesign in one pass: (1) tripos_planner.py (750 lines, over the 500 cap) split
+into a package — prompt / tools / recommend / compact / agent / streaming — with the public
+import surface re-exported unchanged (locked by a test); (2) travel_context_now() registered
+via @instructions, NOT system_prompt: instructions are re-evaluated every run and never
+replayed from history, exactly right for "what is today". The date hint deliberately says
+nothing about suitability — season verdicts stay with check_travel_season; (3) find_stays /
+find_restaurants reuse trip_intelligence.enrich_by_name (new tiny public wrapper over the
+_stub_for path) so they share the build's cache key; a FOCUSED fallback retrieval fires only
+when the generic enrichment is thin for a specific ask (e.g. "homestays" in a village),
+cached under its own {slug}:stays:{kind}:v1 key so it can never clobber the canonical :v2 row;
+(4) suggest_destinations mirrors the circuits provider pattern (research + extraction, cached
+per constraint-key) and reuses rank_circuits_by_budget — DestinationIdea duck-types on
+est_per_person_budget, so destination ideas rank best-budget-fit-first with zero new ranking
+code; (5) the dead-end guard's force nudge is now intent-aware (it names find_stays /
+find_restaurants alongside build_trip) so a stalled homestay promise can't force an unwanted
+trip build; per-tool streaming statuses for the same honesty reason.
+OFFLINE TEST CAUGHT A REAL BUG before it shipped: the veg-preference filter matched "veg" as a
+substring of "non-veg" — a steakhouse ranked as vegetarian-friendly. Same trap family as the
+"no forts"/"Amber Fort" plural bug, inverted. Fixed by stripping negations before matching
+(_veg_friendly). The test-first habit on pure ranking helpers paid for itself immediately.

@@ -24,7 +24,7 @@ system, whatever the automated tests say.
 - **Discovery (no destination):** from **Chennai**, **₹25,000**, **3 days**, **Nature + Adventure** → expected: **3 ranked suggestions** (e.g. Munnar / Kodaikanal / Yercaud), each with a one-line reason and all reachable + affordable from Chennai in 3 days; user picks one and the normal flow continues.
 - **Unrealistic itinerary:** "Munnar + Thekkady + Kodaikanal in 2 days" → expected: agent calls it unrealistic, shows the travel-time math, and suggests one base or more days.
 - **Over budget:** 5-day trip for 4 people on **₹8,000** → expected: agent says it isn't feasible once travel + stay are counted, states a realistic floor, and offers a shorter or closer option.
-- **Out of scope:** "Plan me a trip to **Paris**" → expected: honest "TripOS plans trips within India — Paris is out of scope. Want a similar Indian destination instead?" (no fabricated data). Same for an Indian town not yet in the catalog.
+- **Worldwide planning (updated 2026-06-06 — supersedes the old "India only" case):** "Plan me a trip to **Paris**" → expected: planned like any other destination via retrieval (no fabricated data, estimates labelled). A place that genuinely can't be found → ask to check the spelling or name a nearby well-known town, naturally.
 - **Vague input:** "I want to go somewhere nice" → expected: **one** friendly clarifying question (start city or budget), not a form.
 - **Bad weather / service down:** dates in peak monsoon (or weather API unavailable) → expected: flags heavy rain, swaps trekking/safari for indoor-friendly spots (Tea Museum, Spice Plantation); if the API is down, falls back to seasonal norms and says so.
 - **Mid-plan change:** "reduce budget to ₹35,000" → expected: swaps stays/activities to fit while keeping destination + dates, then shows the new total and **what changed**.
@@ -58,6 +58,47 @@ system, whatever the automated tests say.
 - **Avoid list:** "Plan Jaipur, but no forts please." → expected: no fort stops anywhere in the plan; everything else normal.
 - **Mixed preference:** "Hidden-gem Agra, but obviously include the Taj Mahal." → expected: Taj is in (explicit request wins), the rest of the plan leans offbeat.
 - **Preference on a curated destination (no popularity data, e.g. Munnar):** → expected: plan still builds; preference applied only where data allows; **no claim** of hidden-gem optimization that didn't happen.
+
+## Intent-driven service (V2 Intelligence Upgrade, added 2026-06-06)
+
+Not every message is a trip-planning request. The agent must first understand what the
+traveler is actually trying to accomplish — find a place to stay, find somewhere to eat,
+decide where to go, plan a full trip, or just get advice — and serve **that**, with the
+fewest possible questions. A stay/restaurant/destination request must **never** trigger
+itinerary questions.
+
+- **Homestay search (FIND_STAYS):** "Suggest homestays in **Didupe** under **₹10,000** per person."
+  → expected: **no itinerary questions** (no duration / travel style / pace / start city);
+  a **recommended homestay + 2–3 alternatives**, each with a ₹/night **range** (estimates,
+  never exact), why it's recommended, review quality where known, and a one-line tradeoff.
+  If the village genuinely has fewer matching options, say so honestly and show the closest
+  alternatives — **never invent properties**. No "search Airbnb / Booking.com" deflections.
+- **Restaurant search (FIND_RESTAURANTS):** "Best **seafood** restaurants in **Kochi** for a
+  romantic dinner." → expected: no slot-gathering; a recommended spot + 2–3 alternatives with
+  cuisine, price band, area, why, and the occasion respected. Never "check Zomato / Google Maps".
+- **Destination discovery (DISCOVER_DESTINATIONS):** "Where should I go for **5 days in
+  December**? Beaches, **₹40,000**/person, from Chennai." → expected: **3–5 ranked destination
+  ideas, best budget fit first**, each with a one-line why, the season fit for December, a rough
+  per-person budget range, and a tradeoff; then an offer to plan whichever they pick. No
+  unnecessary questions — days, month, budget, and interests are already given.
+- **Immediate travel (Travel Context):** "I'm **leaving today** for Kerala for 5 days." →
+  expected: today's actual date is resolved automatically — travel month, season, and
+  immediate-travel mode follow from it **without asking when they're travelling**; the agent
+  proceeds with sensible defaults for anything minor that's missing rather than interrogating.
+  Same for "tomorrow", "next weekend", "this December": resolved against today's date, never
+  asked back.
+- **Relative date in any intent:** "Homestays in Wayanad **next weekend** under ₹5,000/night."
+  → expected: FIND_STAYS served directly; "next weekend" resolved to real dates internally;
+  no questions.
+- **PLAN_TRIP unchanged (regression):** "Plan a 6-day Kerala trip for ₹40,000 per person." →
+  expected: the existing full planning flow exactly as documented above — gathering the missing
+  essentials (briefly, inferring everything already stated, never re-asking), season check,
+  budget-as-constraint, advisories. The hidden-gem Paris, Dubai-in-July, budget-advisory, and
+  no-forts scenarios above must all still behave **identically** after this upgrade.
+- **Aggressive inference (PLAN_TRIP):** "Plan 4 days in Goa with my wife in November, ₹30k each,
+  we love food." → expected: group (couple, 2 people), month (November), days, budget, and
+  interests (food) are all **inferred from the message** — at most one short follow-up for
+  what's genuinely missing (start city), never a re-ask of anything stated.
 
 ## Done = all scenarios pass
 

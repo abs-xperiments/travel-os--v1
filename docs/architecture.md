@@ -72,6 +72,26 @@ external), or a hybrid.
 | `planner` (the agent) | drive the policy end-to-end | conversation → `TripPlan` | LLM (pydantic-ai Agent; composers/evaluators are its tools) |
 | `modifier` | apply a natural-language change | (`TripPlan`, "make it cheaper") → updated `TripPlan` + what-changed | LLM intent → targeted recompute |
 
+**Intent-first orchestration (V2 Intelligence Upgrade, 2026-06-06).** The planner agent is
+no longer a single trip-planning workflow: its system prompt classifies each message's
+**intent** (FIND_STAYS / FIND_RESTAURANTS / DISCOVER_DESTINATIONS / PLAN_TRIP /
+GENERAL_ADVICE) and routes via intent-scoped tools. There is deliberately **no separate
+pre-classifier LLM call** — the agent itself is the router (zero extra latency/cost; one
+source of truth). New tools alongside `build_trip`/`build_circuit`/`discover_circuits`/
+`check_travel_season`:
+
+| Tool | Intent | Reuses |
+|------|--------|--------|
+| `find_stays` | FIND_STAYS | the cached destination enrichment (`trip_intelligence.enrich`) — same cache key a later `build_trip` hits |
+| `find_restaurants` | FIND_RESTAURANTS | same cached enrichment |
+| `suggest_destinations` | DISCOVER_DESTINATIONS | `research()` + extraction, mirroring `circuit_discovery` |
+
+A dynamic instruction injects **today's date** each run (the Travel Context Engine), so
+relative dates ("today", "next weekend", "this December") resolve without questions.
+`src/agent/agents/tripos_planner.py` is split into a package (`prompt` / `tools` / `compact` /
+`streaming` / `agent`) to stay under the 500-line file cap; its public import surface is
+unchanged.
+
 ### F. Persistence & output
 | Module | Does one thing | Input → Output | Impl |
 |--------|----------------|----------------|------|
