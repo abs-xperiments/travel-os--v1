@@ -125,8 +125,15 @@ Voice input (manual browser checks — Chrome/Edge/Safari):
 - **Append, never replace:** with "Plan a Japan trip." already in the input, record "Eight
   days." → input becomes "Plan a Japan trip. Eight days." (previous text intact, ". " joining);
   a third recording appends again.
-- **Fully editable:** after transcription the user can edit/delete/add text before sending —
-  the input behaves like a normal text box the moment recording stops.
+- **Fully editable — and edit intent stops the mic (updated 2026-06-07):** the input is
+  NEVER read-only. Tapping into the transcript or typing **while recording** stops the mic
+  and hands over a normal text box — cursor lands where tapped, the keyboard opens (mobile),
+  words can be edited/deleted/selected/pasted. Example: speak "…trip to Bangalore…", tap
+  "Bangalore", change it to "Mysore" — works on a phone exactly like on desktop.
+- **Mic state is obvious everywhere (added 2026-06-07):** idle = a muted mic-with-slash
+  ("tap to start speaking"); listening = an open mic with a red glow/pulse ("I'm
+  listening"). The two states are visually distinct on mobile, tablet, and desktop; stopping
+  returns the muted icon with the transcript intact and editable, never auto-sent.
 - **Graceful degradation:** in a browser without speech recognition (e.g. Firefox) the mic
   button simply isn't shown; typing and everything else works unchanged.
 - **Mobile transcript integrity (added 2026-06-07, after a live-caught Android bug):** on

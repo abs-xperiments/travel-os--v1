@@ -48,12 +48,23 @@
       placeholder="Where to? e.g. ‘Plan 5 days in Kerala’ or ‘Honeymoon in Bali’"
       class="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100
              placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500">
-    <!-- Voice input (revealed only when the browser supports speech recognition) -->
-    <button id="chat-mic" type="button" hidden title="Speak your message"
+    <!-- Voice input (revealed only when the browser supports speech recognition).
+         Two obvious states: muted mic-with-slash = idle, open mic + red glow = LISTENING. -->
+    <button id="chat-mic" type="button" hidden title="Tap to start speaking"
+      aria-pressed="false"
       class="rounded-xl border border-slate-700 px-3 py-3 text-slate-400
              hover:border-sky-500 hover:text-sky-300 transition">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
-           class="h-5 w-5" aria-hidden="true">
+      <svg id="mic-off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+           fill="currentColor" class="h-5 w-5" aria-hidden="true">
+        <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Z" opacity="0.5"/>
+        <path d="M5 10.5a.75.75 0 0 1 1.5 0V12a5.5 5.5 0 0 0 11 0v-1.5a.75.75 0 0 1 1.5 0V12
+                 a7 7 0 0 1-6.25 6.96V21h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5
+                 v-2.04A7 7 0 0 1 5 12v-1.5Z" opacity="0.5"/>
+        <path d="M4.3 3.3a.75.75 0 0 1 1.06 0l15.34 15.34a.75.75 0 1 1-1.06 1.06L4.3 4.36
+                 a.75.75 0 0 1 0-1.06Z"/>
+      </svg>
+      <svg id="mic-on" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+           fill="currentColor" class="h-5 w-5 hidden" aria-hidden="true">
         <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Z"/>
         <path d="M5 10.5a.75.75 0 0 1 1.5 0V12a5.5 5.5 0 0 0 11 0v-1.5a.75.75 0 0 1 1.5 0V12
                  a7 7 0 0 1-6.25 6.96V21h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5
@@ -164,7 +175,7 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  form.addEventListener('submit', (e) => { e.preventDefault(); stopVoice(); send(input.value.trim()); });
+  form.addEventListener('submit', (e) => { e.preventDefault(); send(input.value.trim()); });
   document.querySelectorAll('.example-chip').forEach((b) => {
     b.addEventListener('click', () => send(b.textContent.trim()));
   });
@@ -358,122 +369,7 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  // ---- Voice input: a smart notepad, not a command channel ---------------------------
-  // Speech is transcribed INTO the input box and APPENDED to whatever is already there —
-  // it never replaces existing text and never auto-sends. The user reviews, edits, and
-  // presses Send themselves. Unsupported browsers (e.g. Firefox) simply never see the mic.
-  //
-  // Transcript architecture (mobile root-cause fix, 2026-06-07): we keep NO accumulator
-  // across recognition events. Mobile engines (Android Chrome, iOS Safari) re-send the
-  // transcript CUMULATIVELY and mark growing prefixes `isFinal` repeatedly — any client-side
-  // "append each final" logic duplicates text ("plan… plan a… plan a 5…"). Instead the
-  // engine's own results list is the single source of truth: every event REBUILDS the
-  // session text from e.results[0..n] (idempotent — re-sent events can't duplicate), with a
-  // cumulative-merge absorbing both shapes (desktop: distinct segments; mobile: growing
-  // prefixes). Mobile engines also END themselves after a pause despite continuous=true, so
-  // while the user hasn't tapped stop we COMMIT the finished session and restart a fresh one.
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const mic = document.getElementById('chat-mic');
-  let rec = null;        // the active recognition session; null when idle
-  let recording = false; // USER intent: true from tap-start until tap-stop/submit
-  let voiceBase = '';    // committed text: box content at start + finished pause-sessions
-  let session = '';      // the CURRENT engine session's text, rebuilt on every event
-
-  // "Plan a Japan trip." + "Eight days." -> "Plan a Japan trip. Eight days."
-  function joinSpeech(a, b) {
-    a = a.replace(/\s+$/, ''); b = b.replace(/^\s+/, '');
-    if (!a) return b;
-    if (!b) return a;
-    return a + (/[.!?,;:]$/.test(a) ? ' ' : '. ') + b;
-  }
-
-  // Merge one engine result into the session being rebuilt. Mobile engines re-send the
-  // WHOLE transcript so far as the next entry — when the new text extends what we have
-  // (or repeats its tail), replace/skip instead of appending a duplicate.
-  function mergeCumulative(acc, t) {
-    t = (t || '').trim();
-    if (!t) return acc;
-    if (!acc) return t;
-    const norm = (s) => s.toLowerCase().replace(/\s+/g, ' ').trim();
-    const a = norm(acc), b = norm(t);
-    if (b.startsWith(a)) return t;    // cumulative re-send: the new text supersedes ours
-    if (a.endsWith(b)) return acc;    // duplicate re-send of the last chunk: ignore
-    return acc + ' ' + t;             // a genuinely new segment (desktop continuous mode)
-  }
-
-  function renderVoice() {
-    input.value = joinSpeech(voiceBase, session);
-  }
-
-  function setRecordingUI(on) {
-    mic.classList.toggle('text-red-400', on);
-    mic.classList.toggle('border-red-400', on);
-    mic.classList.toggle('animate-pulse', on);
-    mic.title = on ? 'Stop recording' : 'Speak your message';
-    input.readOnly = on;   // typing can't fight the live transcription mid-recording
-  }
-
-  function startSession() {
-    rec = new SR();                // fresh instance per session (mobile engines require it)
-    rec.lang = 'en-IN';
-    rec.continuous = true;
-    rec.interimResults = true;     // live preview while speaking
-    rec.onresult = (e) => {
-      // REBUILD from the engine's full results list every time — never accumulate across
-      // events, never trust resultIndex. Interim and final entries are treated alike: the
-      // list itself is the state, so a re-sent or upgraded entry can't duplicate text.
-      let s = '';
-      for (let i = 0; i < e.results.length; i++) {
-        s = mergeCumulative(s, e.results[i][0].transcript);
-      }
-      session = s;
-      renderVoice();
-    };
-    rec.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed' ||
-          e.error === 'audio-capture') {
-        mic.title = 'Microphone access was denied';
-        stopVoice();               // hard failure: stop for real
-      }
-      // 'no-speech' / 'aborted' are benign — onend follows and decides what to do.
-    };
-    rec.onend = () => {
-      if (!recording) return;      // user stopped; stopVoice() already cleaned up
-      // The engine ended ITSELF (mobile pause). Commit this session and keep listening.
-      voiceBase = joinSpeech(voiceBase, session);
-      session = '';
-      try { startSession(); } catch { stopVoice(); }
-    };
-    rec.start();
-  }
-
-  function stopVoice() {
-    recording = false;
-    if (rec) {
-      const r = rec;
-      rec = null;
-      r.onresult = null;           // no stale text can land in the box after we let go
-      r.onend = null;
-      r.onerror = null;
-      try { r.stop(); } catch { /* already ended */ }
-    }
-    setRecordingUI(false);
-  }
-
-  function startVoice() {
-    voiceBase = input.value;       // append-mode: snapshot what's already typed
-    session = '';
-    recording = true;
-    try { startSession(); } catch { recording = false; return; }
-    setRecordingUI(true);
-  }
-
-  if (SR && mic) {
-    mic.hidden = false;
-    mic.addEventListener('click', () => {
-      if (recording) { stopVoice(); input.focus(); } else { startVoice(); }
-    });
-  }
 })();
 </script>
+{% include "_voice_input.html" %}
 {% endblock %}

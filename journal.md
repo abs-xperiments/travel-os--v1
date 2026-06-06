@@ -780,3 +780,20 @@ rebuild-from-results transcript code (mergeCumulative — exists only in this bu
 decisive verification is inherently the user's phone (Android Chrome / iOS Safari live mic):
 say a sentence → appears once, interim replaces itself, pauses don't kill the recording.
 main still at 50ced9c — now two releases behind prod; fast-forward awaits user approval.
+
+## 2026-06-07 15:30 — Voice UX: edit-intent-stops-the-mic + two-state mic icon (user spec)
+Issue 1 root cause (mobile "locked into voice mode"): input.readOnly during recording +
+the pause-auto-restart loop. When the user stopped SPEAKING (but hadn't tapped stop), the
+engine self-ended and we silently restarted it — recording stayed true, the input stayed
+readOnly, and a readOnly input on mobile refuses to open the keyboard on tap. The user saw a
+finished transcript they couldn't touch. FIX: deleted the lock instead of softening it — the
+input is never readOnly; pointerdown/beforeinput on the input WHILE recording stop the mic
+(edit intent = stop signal), so the transcript is always a normal editable draft. Desktop
+behavior unchanged (it was the same code path; typing now cleanly stops a live recording
+instead of fighting it). Issue 2: two distinct mic states everywhere — idle = muted
+mic-with-slash ("tap to start speaking"), listening = open mic + red glow/ring/pulse;
+aria-pressed tracks state. ALSO: chat.html hit the 500-line cap → split the voice module
+into templates/_voice_input.html (own IIFE + its own submit listener; Jinja include, still
+no build step) — chat.html back to 375 lines. Verified by template render sanity check
+(both icons, voice module included, no readOnly in code, edit-intent handlers present);
+the decisive editability/icon checks are the user's phone+desktop on prod.
