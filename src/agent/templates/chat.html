@@ -48,6 +48,18 @@
       placeholder="Where to? e.g. ‘Plan 5 days in Kerala’ or ‘Honeymoon in Bali’"
       class="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100
              placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500">
+    <!-- Voice input (revealed only when the browser supports speech recognition) -->
+    <button id="chat-mic" type="button" hidden title="Speak your message"
+      class="rounded-xl border border-slate-700 px-3 py-3 text-slate-400
+             hover:border-sky-500 hover:text-sky-300 transition">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+           class="h-5 w-5" aria-hidden="true">
+        <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Z"/>
+        <path d="M5 10.5a.75.75 0 0 1 1.5 0V12a5.5 5.5 0 0 0 11 0v-1.5a.75.75 0 0 1 1.5 0V12
+                 a7 7 0 0 1-6.25 6.96V21h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5
+                 v-2.04A7 7 0 0 1 5 12v-1.5Z"/>
+      </svg>
+    </button>
     <button id="chat-send" type="submit"
       class="rounded-xl bg-sky-600 px-5 py-3 font-semibold hover:bg-sky-500 transition">
       Send
@@ -149,10 +161,79 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
-  form.addEventListener('submit', (e) => { e.preventDefault(); send(input.value.trim()); });
+  form.addEventListener('submit', (e) => { e.preventDefault(); stopVoice(); send(input.value.trim()); });
   document.querySelectorAll('.example-chip').forEach((b) => {
     b.addEventListener('click', () => send(b.textContent.trim()));
   });
+
+  // ---- Voice input: a smart notepad, not a command channel ---------------------------
+  // Speech is transcribed INTO the input box and APPENDED to whatever is already there —
+  // it never replaces existing text and never auto-sends. The user reviews, edits, and
+  // presses Send themselves. Unsupported browsers (e.g. Firefox) simply never see the mic.
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mic = document.getElementById('chat-mic');
+  let rec = null;       // the active recognition session; null when idle
+  let voiceBase = '';   // text already in the box when this recording started
+  let finals = '';      // finalized speech from this recording session
+
+  // "Plan a Japan trip." + "Eight days." -> "Plan a Japan trip. Eight days."
+  function joinSpeech(a, b) {
+    a = a.replace(/\s+$/, ''); b = b.replace(/^\s+/, '');
+    if (!a) return b;
+    if (!b) return a;
+    return a + (/[.!?,;:]$/.test(a) ? ' ' : '. ') + b;
+  }
+
+  function setRecordingUI(on) {
+    mic.classList.toggle('text-red-400', on);
+    mic.classList.toggle('border-red-400', on);
+    mic.classList.toggle('animate-pulse', on);
+    mic.title = on ? 'Stop recording' : 'Speak your message';
+    input.readOnly = on;   // typing can't fight the live transcription mid-recording
+  }
+
+  function stopVoice() {
+    if (rec) {
+      const r = rec;
+      rec = null;
+      r.onresult = null;   // no stale text can land in the box after we let go
+      r.onend = null;
+      r.stop();
+    }
+    setRecordingUI(false);
+  }
+
+  function startVoice() {
+    rec = new SR();
+    rec.lang = 'en-IN';
+    rec.continuous = true;       // keep listening until the user taps stop
+    rec.interimResults = true;   // live preview while speaking
+    voiceBase = input.value;
+    finals = '';
+    rec.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finals = joinSpeech(finals, t.trim());
+        else interim += t;
+      }
+      input.value = joinSpeech(voiceBase, joinSpeech(finals, interim.trim()));
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed') mic.title = 'Microphone access was denied';
+      stopVoice();
+    };
+    rec.onend = () => { if (rec) { stopVoice(); input.focus(); } };  // engine gave up (silence)
+    rec.start();
+    setRecordingUI(true);
+  }
+
+  if (SR && mic) {
+    mic.hidden = false;
+    mic.addEventListener('click', () => {
+      if (rec) { stopVoice(); input.focus(); } else { startVoice(); }
+    });
+  }
 })();
 </script>
 {% endblock %}

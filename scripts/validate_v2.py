@@ -57,7 +57,8 @@ async def run(name: str) -> None:
         parts: list[str] = []
         async for piece in stream_reply(message, history):
             if piece.kind == "status":
-                print(f"[status] {piece.text.splitlines()[0]}")
+                block = piece.text.replace("\n", "\n         ")  # show the FULL checklist
+                print(f"[status] {block}")
             elif piece.kind == "delta":
                 parts.append(piece.text)
             else:
