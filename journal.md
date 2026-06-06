@@ -823,3 +823,25 @@ trips: claimed by the FIRST account created (user-approved — it's their own te
 race-free inside the user-creation transaction. APP_PASSWORD gate will be REMOVED at cutover
 (sending is auth-gated, so API spend stays protected). User action items: Resend API key
 (blocks deploy), Google OAuth creds (button auto-appears when set), pick a fal-generated icon.
+
+## 2026-06-07 19:00 — Accounts, splash & PWA BUILT and locally E2E-validated (6 phases)
+The premium-product upgrade is code-complete on build/tripos-v1: (P1) accounts core — one
+account per lowercased email, sha256-at-rest secrets, 90d rolling sessions (daily-throttled
+touch), single-use sign-in tokens via atomic conditional UPDATE, in-DB rate limits, and the
+first-user legacy claim inside the creation transaction; (P2) web cutover — chatbot is the
+landing page for everyone, SENDING is the gate (401 + draft preserved), magic-link landing
+GET never consumes / confirm POST does, trips owner-scoped IN SQL (foreign = 404 incl.
+/print; stale cookies yield fresh trips; lazy creation kills the row-per-anonymous-visit
+litter), APP_PASSWORD gate deleted; (P3) Google OAuth config-gated (state cookie, userinfo
+endpoint — no unverified id_token decode, email_verified merge guard) + the user's console
+guide; (P4) avatar upload (type/size validated, R2); (P5) splash — train + brand steam +
+painted wordmark, ~3.2s once, 0.8s sweep after, tap-to-skip, reduced-motion honored;
+(P6) PWA — manifest + tiny root-scope service worker + fal-generated train icon.
+LOCAL E2E (real server, real Neon; token minted directly to stand in for the email): 401
+gate ✓, scanner double-GET leaves the token alive ✓, confirm POST mints the session and
+routes new users to /welcome ✓, spent token polite ✓, logged-in nav ✓, name save ✓,
+foreign trip 404 ✓, logout ✓. Noteworthy: the E2E user momentarily became the "first user"
+and claimed the legacy trips — the un-claim-before-delete cleanup discipline (designed for
+exactly this) restored them to NULL, so the real founder claim still happens on prod.
+DEPLOY IS BLOCKED on the user's Resend API key; checklist in docs/deploy.md (incl. the
+COOKIE_SECURE=true requirement, now also a startup warning).

@@ -35,6 +35,7 @@ from loguru import logger
 
 from agent import web_auth
 from agent.agents.tripos_planner import stream_reply
+from agent.config import get_settings
 from agent.logging_setup import setup_logging
 from agent.services import db
 from agent.tripos import accounts, knowledge_cache, trip_intelligence, trip_store
@@ -64,6 +65,12 @@ EXAMPLES = [
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     setup_logging()
+    settings = get_settings()
+    if settings.app_base_url.startswith("https") and not settings.cookie_secure:
+        logger.warning(
+            "APP_BASE_URL is https but COOKIE_SECURE is false — session cookies would be "
+            "sent over plain http too. Set COOKIE_SECURE=true in production!"
+        )
     # Order matters: accounts' migration 005 alters tripos_trips (created by trip_store's 001).
     applied = (
         await trip_store.init_db()

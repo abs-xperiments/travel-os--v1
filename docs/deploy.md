@@ -94,3 +94,21 @@ railway open                       # open the dashboard
 
 Hobby plan is ~$5/mo and includes some usage; small apps/bots fit inside the included
 credit. It never sleeps, which is the whole point for an always-on agent.
+
+## Accounts cutover checklist (2026-06-07)
+
+The shared APP_PASSWORD gate is GONE — passwordless accounts replace it. Deploying this
+build requires, via `railway variables --set`:
+
+1. `RESEND_API_KEY` + `RESEND_FROM` — sign-in emails (resend.com, free tier).
+2. `APP_BASE_URL=https://tripos-web-production-4f1c.up.railway.app` — EXACT https URL
+   (magic links and the Google redirect are built from it).
+3. `COOKIE_SECURE=true` — ⚠️ mandatory: session cookies must be https-only in prod
+   (the app logs a loud warning at startup if you forget).
+4. Delete the old `APP_PASSWORD` variable (unused now).
+5. Optional, any time later: `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`
+   (docs/google_oauth_setup.md) — the Google button appears automatically.
+
+After deploy: **the founder signs in FIRST** — the first account ever created claims all
+pre-accounts trips. Then smoke: logged-out / renders with Login/Sign Up; POST /chat/stream
+logged-out → 401; magic-link round trip (request → email → confirm page → signed in).
