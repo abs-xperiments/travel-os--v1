@@ -797,3 +797,11 @@ into templates/_voice_input.html (own IIFE + its own submit listener; Jinja incl
 no build step) — chat.html back to 375 lines. Verified by template render sanity check
 (both icons, voice module included, no readOnly in code, edit-intent handlers present);
 the decisive editability/icon checks are the user's phone+desktop on prod.
+
+## 2026-06-07 16:00 — Voice UX fixes DEPLOYED to production (user-authorized)
+Pushed 372b65b and deployed; boot clean. Prod smoke on the served page: both mic state icons
+present (mic-off slash idle / mic-on listening), the pointerdown edit-intent handler live,
+and input.readOnly absent from the shipped code — the mobile edit lock is gone in prod.
+Decisive verification is the user's phone: tap into the transcript mid-recording → mic stops,
+cursor lands, keyboard opens; mic states visually obvious. main still at 50ced9c — three
+releases behind prod; fast-forward awaits user approval.
