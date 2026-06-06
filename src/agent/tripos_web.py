@@ -22,7 +22,14 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, Form, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
@@ -100,6 +107,13 @@ async def resolve_user(
 
 
 app.include_router(web_auth.router)
+app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
+
+
+@app.get("/sw.js")
+async def service_worker() -> FileResponse:
+    """Served from the root so the service worker's scope covers the whole app."""
+    return FileResponse(HERE / "static" / "sw.js", media_type="application/javascript")
 
 
 @app.get("/")

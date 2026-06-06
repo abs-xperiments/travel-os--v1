@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}TripOS{% endblock %}</title>
+  <!-- PWA: installable on Android/iOS/desktop from one codebase (no app store). -->
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <meta name="theme-color" content="#0284c7">
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="TripOS">
   <!-- HTMX (dynamic, no JS to write), Tailwind (styling), marked (render the agent's
        markdown). All via CDN — no build step. The Tailwind CDN build is for
        prototyping/teaching; a production app would compile it ahead of time. -->
@@ -42,6 +49,10 @@
       renderMarkdown(); scrollChat();
       var f=document.getElementById('chat-form'); if(f){ f.reset(); }
     });
+    // PWA: register the (tiny) service worker — required for installability.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){ /* non-fatal */ });
+    }
   </script>
 </body>
 </html>
