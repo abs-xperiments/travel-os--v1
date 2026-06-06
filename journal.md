@@ -674,3 +674,27 @@ service (railway up --service tripos-web). Boot clean; prod smoke verified the n
 ("Finding great places to eat…" — a string that only exists in this build) and streamed
 recommendations directly, zero slot-gathering. The intent-first consultant is live.
 main not yet fast-forwarded — awaiting explicit go-ahead, per convention.
+
+## 2026-06-06 13:30 — UX & performance upgrade built: prewarm + live checklist + voice
+Three mechanisms, all preserving quality (verified: the July Dubai plan's estimate range is
+byte-identical pre/post — ₹47,000–₹68,000): (1) REAL SPEED — check_travel_season now
+fire-and-forgets a background destination resolve (its season fetch already warmed enrichment),
+so the conversation's dead time warms BOTH caches before the build turn; prerequisite was
+in-flight coalescing (one task per place in web_intelligence.gather +
+destination_intelligence.resolve) so an overlapping prewarm and build never double-pay.
+Deliberately did NOT split the combined enrichment fetch into 4 parallel calls — 4x research
+cost, and extraction (not research) dominates. (2) PERCEIVED SPEED — progress.py Reporter
+(ContextVar, inherited by tool tasks, no-op when inactive) + stream_reply now RACES the run
+iterator's anext() (where tool execution blocks — verified in pydantic-ai source) against the
+progress queue, so ✓-checklist statuses stream mid-tool. Domain modules stay agent-agnostic via
+optional on_progress/on_leg_done callbacks. Honesty contract: ✓ only on completed work (a
+failed resolve never ticks). Live-verified: Dubai build streams the full cascade; Didupe shows
+"Digging deeper for homestay options" exactly when the fallback fires. (3) VOICE — user chose
+the browser Web Speech API over server-side Whisper (free, frontend-only, live interim text;
+tradeoff: no Firefox, engine-dependent quality — mitigated by the smart-notepad design where
+the user always edits before sending). Append-mode joining ("Plan a Japan trip." + "Eight
+days."), readOnly input while recording, handlers detached on stop so stale speech can't land
+in a cleared box, never auto-sends. Browser voice checks are manual (Web Speech can't be
+driven by pytest) — listed in scenarios.md. Prewarm's live timing benefit on a truly cold
+destination not yet measured (mechanism unit-tested; cache-hit fast path already proven) —
+worth a timed check next time a new destination comes up naturally.
