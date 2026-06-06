@@ -68,3 +68,8 @@ def register_defaults(reg: ProviderRegistry) -> None:
         from agent.tripos.providers.circuits import WebCircuitProvider
 
         reg.register("circuit", WebCircuitProvider())
+
+    if not reg.get_all("destination_suggestion"):
+        from agent.tripos.providers.destination_suggestions import WebDestinationSuggester
+
+        reg.register("destination_suggestion", WebDestinationSuggester())

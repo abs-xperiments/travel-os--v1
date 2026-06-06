@@ -372,6 +372,28 @@ class CircuitOptions(BaseModel):
     circuits: list[Circuit] = Field(default_factory=list)
 
 
+class DestinationIdea(BaseModel):
+    """One suggested destination for a "where should I go?" ask (web-grounded estimate)."""
+
+    name: str
+    country: str = ""
+    why: str = Field(description="One line tying the suggestion to the traveler's constraints.")
+    best_season: str = Field(
+        default="", description="When it shines, e.g. 'Nov–Feb; December is ideal'."
+    )
+    est_per_person_budget: float | None = Field(
+        default=None, description="Rough ₹ per person for the asked trip length."
+    )
+    good_for: list[str] = Field(default_factory=list)
+    tradeoffs: str = Field(default="", description="The honest catch, e.g. 'crowded in December'.")
+
+
+class DestinationIdeas(BaseModel):
+    """A set of suggested destinations (the structured output of destination discovery)."""
+
+    ideas: list[DestinationIdea] = Field(default_factory=list)
+
+
 class CircuitStop(BaseModel):
     """One leg of a built circuit: a destination, its nights, day plans, and stays."""
 

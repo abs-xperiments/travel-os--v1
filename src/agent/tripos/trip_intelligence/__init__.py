@@ -50,6 +50,17 @@ async def enrich(destination: Destination, brief: TripBrief) -> TripEnrichment:
         return TripEnrichment()
 
 
+async def enrich_by_name(query: str, brief: TripBrief) -> TripEnrichment:
+    """Enrichment (stays/restaurants/weather/seasonality) for a place NAME — no full resolve.
+
+    The cheap path for standalone requests ("homestays in Didupe", "restaurants in Kochi"):
+    enrichment only needs the name, and it rides the same per-destination cache the build uses
+    (key = the name's slug) — so answering a stays question today makes a later full plan for
+    the same place a cache HIT, not an extra fetch.
+    """
+    return await enrich(_stub_for(query), brief)
+
+
 async def season_profile(destination_query: str, brief: TripBrief) -> SeasonalityProfile | None:
     """The year-round seasonality profile for a destination NAME — for advising before a build.
 
@@ -57,7 +68,7 @@ async def season_profile(destination_query: str, brief: TripBrief) -> Seasonalit
     nothing extra overall: the first caller pays the one web fetch, the build then hits cache.
     Returns None when no solid seasonal data was retrieved (then: no advisory, never a bluff).
     """
-    return (await enrich(_stub_for(destination_query), brief)).seasonality
+    return (await enrich_by_name(destination_query, brief)).seasonality
 
 
 def _stub_for(query: str) -> Destination:

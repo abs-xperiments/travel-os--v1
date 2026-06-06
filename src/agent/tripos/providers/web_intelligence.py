@@ -81,6 +81,32 @@ async def gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
     return enriched
 
 
+async def gather_focused(place: str, ask: str, cache_key: str) -> TripEnrichment:
+    """A second, narrowly-scoped retrieval for a specific ask the generic enrichment was too
+    thin for (e.g. "homestays" in a tiny village whose generic fetch found mostly hotels).
+
+    Cached under its OWN key (e.g. "didupe:stays:homestay:v1") — NEVER the canonical
+    "{slug}:v2" key — so a filtered niche fetch can't overwrite the per-destination enrichment
+    that builds and season checks depend on. Callers gate this behind a thin-result check, so
+    the common path stays one fetch.
+    """
+    cached = await intelligence_cache.get(cache_key)
+    if cached is not None:
+        return TripEnrichment.model_validate_json(cached)
+
+    info = await research(
+        f"For {place}: {ask}. Name real, verifiable places only — for each give the area, a "
+        f"rough price range, and what makes it good."
+    )
+    result = await _extractor.run(
+        f"Researched notes:\n{info.text}\n\nProduce the structured enrichment from these notes "
+        "only. Leave any slice the notes don't cover EMPTY — never pad or guess."
+    )
+    enriched = result.output
+    await intelligence_cache.put(cache_key, enriched.model_dump_json())
+    return enriched
+
+
 class WebAccommodationProvider:
     name = "web"
 

@@ -20,11 +20,12 @@ from agent.agents.tripos_planner import (
     check_travel_season,
     list_destinations,
     rank_circuits_by_budget,
+    travel_context_now,
 )
 
 
 def test_promise_regex_triggers_on_build_promises_not_on_questions():
-    # The dead-end guard fires only when the model PROMISED to build but didn't call the tool.
+    # The dead-end guard fires only when the model PROMISED to build but didn't call a tool.
     assert _PROMISE_RE.search("Great! I'll put that together for you.")
     assert _PROMISE_RE.search("Let me build that plan now.")
     assert _PROMISE_RE.search("I'm going to prepare your itinerary.")
@@ -32,6 +33,16 @@ def test_promise_regex_triggers_on_build_promises_not_on_questions():
     assert not _PROMISE_RE.search("Which city are you starting from?")
     assert not _PROMISE_RE.search("Want me to suggest a few options?")
     assert not _PROMISE_RE.search("Here's your 3-day plan, ready to go!")
+
+
+def test_promise_regex_with_stay_promises_is_safe_by_design():
+    # A stalled stays-promise also trips the guard — INTENTIONALLY. The forced nudge
+    # (_FORCE_BUILD) is intent-aware: it tells the model to call the tool serving what it
+    # promised (find_stays / find_restaurants / build_trip), so a homestay promise can never
+    # force an unwanted full trip build.
+    assert _PROMISE_RE.search("I'll pull together some homestay options for you.")
+    # Delivered recommendations (no promise verbs) never trip it.
+    assert not _PROMISE_RE.search("Here are a few homestays in Didupe you'll love.")
 
 
 def test_list_destinations_includes_munnar():
@@ -120,3 +131,32 @@ def test_parse_date_accepts_iso_and_never_raises():
     assert _parse_date("2026-12-20") == date(2026, 12, 20)
     assert _parse_date("next friday") is None
     assert _parse_date(None) is None
+
+
+def test_travel_context_now_carries_todays_date_but_no_season_verdict():
+    # The Travel Context Engine: the model must know TODAY so "leaving today" / "next weekend" /
+    # "this December" resolve without questions — but the date must never become a season verdict.
+    from agent.tripos.models import MONTH_NAMES
+
+    today = date.today()
+    text = travel_context_now()
+    assert f"{today:%A}" in text  # weekday
+    assert MONTH_NAMES[today.month] in text  # month name
+    assert str(today.year) in text
+    # Relative-date resolution rules are spelled out for the model.
+    assert "next weekend" in text
+    assert "this December" in text.replace('"this December"', "this December")
+    # The date informs WHEN, never HOW SUITABLE — suitability stays with check_travel_season.
+    assert "season check" in text
+
+
+def test_package_public_surface_is_stable():
+    # The package split (2026-06-06) must keep every public symbol importable from the root —
+    # tripos_web.py, main.py, and these tests all rely on it.
+    import agent.agents.tripos_planner as planner
+
+    for symbol in planner.__all__:
+        assert hasattr(planner, symbol), f"missing re-export: {symbol}"
+    # The two consumers outside tests use exactly these:
+    assert callable(planner.stream_reply)  # tripos_web.py
+    assert planner.planner_agent is not None  # main.py
