@@ -21,7 +21,7 @@ from typing import Annotated
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Form, Request, Response
+from fastapi import APIRouter, File, Form, Request, Response, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from loguru import logger
@@ -266,6 +266,44 @@ async def profile_save(request: Request, name: Annotated[str, Form()]) -> Respon
         await accounts.update_profile(user.id, name=cleaned)
         user = await accounts.get_user(user.id) or user
     return templates.TemplateResponse(request, "profile.html", {"user": user, "saved": True})
+
+
+# Avatar upload: strict allow-list, hard size cap, suffix derived from the VALIDATED
+# content-type (never the client's filename), random UUID key in R2 under avatars/.
+_AVATAR_TYPES = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+_AVATAR_MAX_BYTES = 2 * 1024 * 1024
+
+
+@router.post("/profile/avatar")
+async def profile_avatar(request: Request, photo: Annotated[UploadFile, File()]) -> Response:
+    user = getattr(request.state, "user", None)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    suffix = _AVATAR_TYPES.get(photo.content_type or "")
+    error = None
+    if suffix is None:
+        error = "Please choose a PNG, JPEG, or WebP image."
+    else:
+        data = await photo.read()
+        if len(data) > _AVATAR_MAX_BYTES:
+            error = "That image is over 2 MB — please pick a smaller one."
+        else:
+            try:
+                from agent.services import storage
+
+                key = await storage.store_bytes(
+                    data, suffix=suffix, prefix="avatars", content_type=photo.content_type
+                )
+                await accounts.update_profile(user.id, avatar_url=storage.public_url(key))
+                user = await accounts.get_user(user.id) or user
+            except Exception:
+                logger.exception("avatar upload failed")
+                error = "Couldn't save that photo right now — try again in a moment."
+    return templates.TemplateResponse(
+        request,
+        "profile.html",
+        {"user": user, "saved": error is None, "error": error},
+    )
 
 
 @router.post("/auth/logout-everywhere")

@@ -23,6 +23,19 @@
     {% if saved %}
     <div class="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">Saved ✓</div>
     {% endif %}
+    {% if error %}
+    <div class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/profile/avatar" enctype="multipart/form-data"
+          class="flex items-center gap-3">
+      <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" required
+        class="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0
+               file:bg-slate-800 file:px-3 file:py-1.5 file:text-sm file:text-slate-200">
+      <button type="submit"
+        class="rounded-xl border border-slate-700 px-3 py-1.5 text-sm text-slate-300
+               hover:border-sky-500 hover:text-sky-300 transition">Upload photo</button>
+    </form>
 
     <form method="post" action="/profile" class="space-y-3">
       <label class="block text-sm font-medium text-slate-200" for="name">Name</label>
