@@ -745,3 +745,12 @@ file exists to pin down); both seams now faked, with a warning comment for the n
 added. Split extraction verified live (integration suite: 4 parallel extractors populate every
 slice). Remaining before deploy: manual browser run of the form (taps, Something-else,
 month/Flexible, review strip, Build-my-trip, voice coexistence).
+
+## 2026-06-07 12:30 — Questionnaire-first planning DEPLOYED to production (user-authorized)
+Pushed build/tripos-v1 (3cb16a2) and deployed. Boot clean; TWO prod smokes on the real
+/chat/stream: (1) the Coorg prompt produced the form SSE event with the header echo and
+exactly the gap questions (travel_when, group+travelers child, typed budget with presets,
+multi-select interests, pace) — an event kind that only exists in this release; (2) the
+fully-specified Dubai prompt produced ZERO form events and went straight to the season check
+(advisory streamed) — the form never over-triggers. Split extraction + seasonality-fast path
++ concise presentation are live on the same paths. main not yet fast-forwarded.
