@@ -65,11 +65,20 @@ async def enrich_by_name(query: str, brief: TripBrief) -> TripEnrichment:
 async def season_profile(destination_query: str, brief: TripBrief) -> SeasonalityProfile | None:
     """The year-round seasonality profile for a destination NAME — for advising before a build.
 
-    Rides the same cached enrichment fetch the build uses, so checking the season early costs
-    nothing extra overall: the first caller pays the one web fetch, the build then hits cache.
+    Goes straight to the seasonality provider (NOT the full enrichment), which resolves the
+    moment its slice of the shared fetch is extracted — the stays/restaurants/weather slices
+    keep filling the same cache in the background, so the build that follows still hits cache.
     Returns None when no solid seasonal data was retrieved (then: no advisory, never a bluff).
     """
-    return (await enrich_by_name(destination_query, brief)).seasonality
+    providers.register_defaults(registry)
+    season = registry.get("seasonality")
+    if season is None:
+        return None
+    try:
+        return await season.profile(_stub_for(destination_query), brief)
+    except Exception:
+        logger.exception("season profile failed for {!r} — advising without it", destination_query)
+        return None
 
 
 def _stub_for(query: str) -> Destination:

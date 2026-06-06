@@ -90,11 +90,28 @@ def _brief() -> TripBrief:
     )
 
 
-async def test_enrich_carries_every_slice_through(monkeypatch: pytest.MonkeyPatch):
+def _patch_fetches(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fake BOTH web exits: the full gather AND the seasonality fast path (added 2026-06-07).
+
+    Patching only `gather` silently let `season_profile` reach the live network through
+    `gather_seasonality` — the same seam-drift this file exists to pin down. When a new
+    retrieval exit is added, it must be faked here too.
+    """
+
     async def fake_gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
         return _FULL
 
+    async def fake_gather_seasonality(
+        destination: Destination, brief: TripBrief
+    ) -> SeasonalityProfile | None:
+        return _FULL.seasonality
+
     monkeypatch.setattr(web_intelligence, "gather", fake_gather)
+    monkeypatch.setattr(web_intelligence, "gather_seasonality", fake_gather_seasonality)
+
+
+async def test_enrich_carries_every_slice_through(monkeypatch: pytest.MonkeyPatch):
+    _patch_fetches(monkeypatch)
     enr = await trip_intelligence.enrich(_dest(), _brief())
     assert enr.stays and enr.stays[0].name == "Rove"
     assert enr.restaurants and enr.restaurants[0].name == "Al Fanar"
@@ -107,9 +124,6 @@ async def test_enrich_carries_every_slice_through(monkeypatch: pytest.MonkeyPatc
 
 
 async def test_season_profile_exposes_the_profile_by_name(monkeypatch: pytest.MonkeyPatch):
-    async def fake_gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
-        return _FULL
-
-    monkeypatch.setattr(web_intelligence, "gather", fake_gather)
+    _patch_fetches(monkeypatch)
     profile = await trip_intelligence.season_profile("Faketown", _brief())
     assert profile is not None and profile.best_months == [11, 12, 1]
