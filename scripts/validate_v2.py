@@ -13,6 +13,7 @@ Multi-turn scenarios send the follow-up automatically with the carried history.
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 
 from pydantic_ai.messages import ModelMessagesTypeAdapter
@@ -22,6 +23,15 @@ from agent.logging_setup import setup_logging
 from agent.tripos import knowledge_cache, trip_intelligence, trip_store
 
 SCENARIOS: dict[str, list[str]] = {
+    # Questionnaire-first planning (docs/scenarios.md, added 2026-06-07): turn 1 must show a
+    # FORM asking only the missing fields (no text questions); turn 2 simulates the form
+    # submission -> season check -> plan; turn 3 contradicts the budget -> ONE clarifying line.
+    "coorg": [
+        "Plan a 4-day trip to Coorg from Chennai for 2 people.",
+        "Here are my trip details — When are you travelling: October 2026. "
+        "Rough budget per person: ₹30,000 per person. What do you enjoy: Nature, Hidden gems.",
+        "Actually I can stretch the budget to ₹45,000 per person.",
+    ],
     # V2 intent scenarios (docs/scenarios.md "Intent-driven service")
     "didupe": ["Suggest homestays in Didupe under ₹10,000 per person."],
     "kochi": ["Best seafood restaurants in Kochi for a romantic dinner."],
@@ -59,6 +69,10 @@ async def run(name: str) -> None:
             if piece.kind == "status":
                 block = piece.text.replace("\n", "\n         ")  # show the FULL checklist
                 print(f"[status] {block}")
+            elif piece.kind == "form":
+                spec = json.loads(piece.text)
+                fields = ", ".join(q["field"] for q in spec.get("questions", []))
+                print(f"[form]   header={spec.get('header')!r} asking: {fields}")
             elif piece.kind == "delta":
                 parts.append(piece.text)
             else:

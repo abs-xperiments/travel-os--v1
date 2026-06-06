@@ -725,3 +725,23 @@ into four parallel slice extractors (same single research call, same model — t
 check stops paying ~40s for stays/food/weather it doesn't need) + concise presentation.
 Season advisory stays a post-form turn when the month is genuinely bad — the one
 legitimate follow-up; honesty beats the 1-submission metric there.
+
+## 2026-06-07 11:30 — Questionnaire-first planning + speed moves BUILT & Layer-3 validated
+All five phases green. Live validation results: (1) "Plan a 4-day trip to Coorg from Chennai
+for 2 people" → ONE form asking only the gaps (travel_when/budget/interests; header echoed
+"Got it so far: Coorg · Chennai · 4 days · 2 people") + one warm sentence; (2) simulated form
+submission → season check → full plan with the ✅ budget verdict table; (3) "actually I can
+stretch to ₹45,000" → ONE explicit confirm line, never silently replanned; (4) Dubai
+regression with all details given → ZERO forms, advisory-only first turn, "continue with
+July" → indoor-leaning plan whose estimate range is BYTE-IDENTICAL for the third release
+running (₹47,000–₹68,000) — concise presentation cut the transcript to ~925 words for both
+turns with the full budget contract intact. LIVE-CAUGHT BUG #1: the model streamed the
+questions as TEXT before calling the form tool (duplicating the form) — fixed by making the
+prompt demand the tool call BEFORE any text and forbidding self-written questions; re-verified
+(one warm sentence only). OFFLINE-CAUGHT BUG #2: changing season_profile's exit to the
+seasonality fast path silently un-covered the offline regression test's monkeypatch — the test
+reached the LIVE network through the new gather_seasonality exit (the exact seam-drift that
+file exists to pin down); both seams now faked, with a warning comment for the next exit
+added. Split extraction verified live (integration suite: 4 parallel extractors populate every
+slice). Remaining before deploy: manual browser run of the form (taps, Something-else,
+month/Flexible, review strip, Build-my-trip, voice coexistence).
