@@ -149,7 +149,9 @@ async def chat_stream(request: Request, message: Annotated[str, Form()]) -> Stre
                     yield f"data: {json.dumps({'t': piece.text})}\n\n"
                 elif piece.kind == "status":  # transient progress while a tool runs
                     yield f"data: {json.dumps({'status': piece.text})}\n\n"
-                else:  # done
+                elif piece.kind == "form":  # questionnaire spec — transient, like statuses
+                    yield f"data: {json.dumps({'form': json.loads(piece.text)})}\n\n"
+                elif piece.kind == "done":
                     await trip_store.append_turn(
                         trip_id, message, "".join(parts), piece.messages_json
                     )

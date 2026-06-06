@@ -10,7 +10,7 @@ from pydantic_ai import Agent
 
 from agent.services.llm import build_model
 
-from . import recommend, tools
+from . import questionnaire, recommend, tools
 from .prompt import SYSTEM_PROMPT, travel_context_now
 
 # balanced = Claude Sonnet (good at tool use); cheap enough for a chat. See services/llm.py.
@@ -30,3 +30,5 @@ planner_agent.tool_plain(tools.build_circuit)
 planner_agent.tool_plain(recommend.find_stays)
 planner_agent.tool_plain(recommend.find_restaurants)
 planner_agent.tool_plain(recommend.suggest_destinations)
+# Questionnaire-first gathering (V3): one structured form instead of drip-fed questions.
+planner_agent.tool_plain(questionnaire.request_trip_details)

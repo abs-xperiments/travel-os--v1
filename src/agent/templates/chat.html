@@ -144,6 +144,9 @@
           } else if (data.status !== undefined) {
             prog.textContent = data.status;               // show progress during a tool call
             progRow.style.display = 'flex';
+          } else if (data.form !== undefined) {
+            hideProg();
+            renderForm(data.form);                        // questionnaire block (see below)
           } else if (data.error) {
             hideProg();
             bot.innerHTML = marked.parse(acc + '\n\n*' + data.error + '*');
@@ -165,6 +168,195 @@
   document.querySelectorAll('.example-chip').forEach((b) => {
     b.addEventListener('click', () => send(b.textContent.trim()));
   });
+
+  // ---- Questionnaire renderer: one structured block for missing trip details ---------
+  // The agent decides WHAT to ask; this renders the spec. Answers compose into a normal
+  // chat message on submit (review-strip + "Build my trip" = the confirmation). All
+  // user-influenced text is inserted via textContent — never parsed as markdown/HTML.
+  const CHIP = 'example-chip rounded-full border border-slate-700 px-3 py-1 text-sm ' +
+               'text-slate-300 hover:border-sky-500 hover:text-sky-300 transition';
+  const CHIP_ON = ['border-sky-500', 'text-sky-300', 'bg-sky-500/10'];
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+
+  function monthName(value) {           // "2026-10" -> "October 2026"
+    const [y, m] = value.split('-');
+    return MONTHS[+m - 1] + ' ' + y;
+  }
+
+  function renderForm(spec) {
+    const answers = {};                 // field -> display string (already human-readable)
+    const labels = {};                  // field -> short label for the composed message
+
+    const row = document.createElement('div');
+    row.className = 'flex';
+    const box = document.createElement('div');
+    box.className = 'max-w-[90%] w-full rounded-2xl bg-slate-900 border border-slate-700 ' +
+                    'px-4 py-4 space-y-4';
+    row.appendChild(box);
+
+    if (spec.header) {
+      const h = document.createElement('div');
+      h.className = 'text-sm text-sky-300';
+      h.textContent = spec.header;
+      box.appendChild(h);
+    }
+
+    const review = document.createElement('div');     // live "my understanding" strip
+    review.className = 'border-t border-slate-800 pt-3 text-sm text-slate-400 ' +
+                       'whitespace-pre-line empty:hidden';
+
+    function refresh() {
+      // Update the review strip and toggle conditional children.
+      const parts = Object.keys(answers).filter((f) => answers[f]).map((f) => answers[f]);
+      review.textContent = parts.length ? 'My understanding: ' + parts.join(' · ') : '';
+      box.querySelectorAll('[data-show-when]').forEach((el) => {
+        const want = JSON.parse(el.dataset.showWhen);
+        el.style.display = want.includes(answers[el.dataset.parent]) ? '' : 'none';
+        if (el.style.display === 'none' && el.dataset.field) {
+          delete answers[el.dataset.field];            // hidden branch answers don't count
+        }
+      });
+    }
+
+    function makeChip(text, onTap) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = CHIP;
+      b.textContent = text;
+      b.addEventListener('click', () => onTap(b));
+      return b;
+    }
+
+    function setActive(group, chips, on) {
+      chips.forEach((c) => CHIP_ON.forEach((cls) => c.classList.toggle(cls, on.includes(c))));
+    }
+
+    function addQuestion(q, parentField) {
+      const wrap = document.createElement('div');
+      wrap.className = 'space-y-2';
+      wrap.dataset.field = q.field;
+      if (q.show_when) {                // conditional child: hidden until the parent matches
+        wrap.dataset.parent = parentField;
+        wrap.dataset.showWhen = JSON.stringify(q.show_when);
+        wrap.style.display = 'none';
+      }
+      const lab = document.createElement('div');
+      lab.className = 'text-sm font-medium text-slate-200';
+      lab.textContent = q.label;
+      wrap.appendChild(lab);
+      labels[q.field] = q.label.replace(/\?$/, '');
+
+      const line = document.createElement('div');
+      line.className = 'flex flex-wrap items-center gap-2';
+      wrap.appendChild(line);
+
+      const setAnswer = (v) => { answers[q.field] = v; refresh(); };
+
+      if (q.type === 'single' || q.type === 'multi') {
+        const chips = [];
+        const chosen = new Set();
+        (q.options || []).forEach((opt) => {
+          const c = makeChip(opt, () => {
+            if (q.type === 'single') { chosen.clear(); chosen.add(opt); setActive(q.field, chips, [c]); }
+            else { chosen.has(opt) ? chosen.delete(opt) : chosen.add(opt);
+                   setActive(q.field, chips, chips.filter((x) => chosen.has(x.textContent))); }
+            other.value = '';
+            setAnswer([...chosen].join(', '));
+          });
+          chips.push(c);
+          line.appendChild(c);
+        });
+        const other = document.createElement('input');
+        other.type = 'text';
+        other.placeholder = 'Something else…';
+        other.className = 'rounded-lg border border-slate-700 bg-slate-950 px-3 py-1 text-sm ' +
+                          'w-36 placeholder:text-slate-600 focus:outline-none focus:ring-1 ' +
+                          'focus:ring-sky-500' + (q.allow_other ? '' : ' hidden');
+        other.addEventListener('input', () => {
+          if (q.type === 'single') { chosen.clear(); setActive(q.field, chips, []); }
+          setAnswer([...chosen].concat(other.value.trim() ? [other.value.trim()] : []).join(', '));
+        });
+        line.appendChild(other);
+      } else if (q.type === 'month') {
+        const month = document.createElement('input');
+        month.type = 'month';
+        month.className = 'rounded-lg border border-slate-700 bg-slate-950 px-3 py-1 text-sm';
+        month.addEventListener('input', () => {
+          if (month.value) { setActive(q.field, [flex], []); setAnswer(monthName(month.value)); }
+        });
+        const flex = makeChip('Flexible / not sure', (b) => {
+          month.value = '';
+          setActive(q.field, [flex], [b]);
+          setAnswer('Flexible on timing');
+        });
+        const exact = document.createElement('div');
+        exact.className = 'hidden flex items-center gap-2';
+        const d1 = document.createElement('input'); d1.type = 'date';
+        const d2 = document.createElement('input'); d2.type = 'date';
+        [d1, d2].forEach((d) => {
+          d.className = 'rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm';
+          d.addEventListener('input', () => {
+            if (d1.value) setAnswer(d1.value + (d2.value ? ' to ' + d2.value : ''));
+          });
+        });
+        exact.append(d1, document.createTextNode('→'), d2);
+        const exactToggle = makeChip('Exact dates', () => {
+          exact.classList.toggle('hidden');
+          setActive(q.field, [flex], []);
+        });
+        line.append(month, flex, exactToggle);
+        wrap.appendChild(exact);
+      } else if (q.type === 'budget' || q.type === 'number') {
+        const n = document.createElement('input');
+        n.type = 'number';
+        n.min = '1';
+        n.placeholder = q.placeholder || '';
+        n.className = 'rounded-lg border border-slate-700 bg-slate-950 px-3 py-1 text-sm w-36 ' +
+                      'placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500';
+        const fmt = (v) => q.type === 'budget'
+          ? '₹' + Number(v).toLocaleString('en-IN') + ' per person' : String(v);
+        n.addEventListener('input', () => setAnswer(n.value ? fmt(n.value) : ''));
+        line.appendChild(n);
+        (q.presets || []).forEach((p) => {
+          line.appendChild(makeChip('₹' + Number(p).toLocaleString('en-IN'), () => {
+            n.value = p;                 // presets are shortcuts; the typed input stays primary
+            setAnswer(fmt(p));
+          }));
+        });
+      } else {                           // text
+        const t = document.createElement('input');
+        t.type = 'text';
+        t.placeholder = q.placeholder || '';
+        t.className = 'rounded-lg border border-slate-700 bg-slate-950 px-3 py-1 text-sm w-64 ' +
+                      'placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500';
+        t.addEventListener('input', () => setAnswer(t.value.trim()));
+        line.appendChild(t);
+      }
+
+      box.appendChild(wrap);
+      (q.children || []).forEach((child) => addQuestion(child, q.field));
+    }
+
+    (spec.questions || []).forEach((q) => addQuestion(q, null));
+    box.appendChild(review);
+
+    const submit = document.createElement('button');
+    submit.type = 'button';
+    submit.textContent = '✓ Build my trip';
+    submit.className = 'rounded-xl bg-sky-600 px-5 py-2 font-semibold hover:bg-sky-500 transition';
+    submit.addEventListener('click', () => {
+      const filled = Object.keys(answers).filter((f) => answers[f]);
+      if (!filled.length) return;        // nothing answered -> nothing to send
+      const parts = filled.map((f) => labels[f] + ': ' + answers[f]);
+      box.classList.add('opacity-60', 'pointer-events-none');   // disable, keep visible
+      send('Here are my trip details — ' + parts.join('. ') + '.');
+    });
+    box.appendChild(submit);
+
+    chat.appendChild(row);
+    chat.scrollTop = chat.scrollHeight;
+  }
 
   // ---- Voice input: a smart notepad, not a command channel ---------------------------
   // Speech is transcribed INTO the input box and APPENDED to whatever is already there —
