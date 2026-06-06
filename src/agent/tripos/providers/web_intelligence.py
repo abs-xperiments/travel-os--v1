@@ -9,6 +9,8 @@ The shared cache means calling all three costs ONE fetch, not three.
 
 from __future__ import annotations
 
+import asyncio
+
 from pydantic_ai import Agent
 
 from agent.services.llm import build_model, research
@@ -50,6 +52,12 @@ _extractor = Agent(
 # from before the change — otherwise they'd pin the missing field for the cache's max age.
 _CACHE_KEY_VERSION = "v2"
 
+# One retrieval per destination at a time: concurrent callers (e.g. a season check that warms
+# the cache and a build that starts moments later) await the SAME task — never a double fetch.
+# The first caller's brief colours the extraction slightly; followers get the identical result,
+# exactly as a cache hit would.
+_in_flight: dict[str, asyncio.Task[TripEnrichment]] = {}
+
 
 async def gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
     """Retrieve (and cache) stays + restaurants + weather + seasonality. One web fetch."""
@@ -58,6 +66,16 @@ async def gather(destination: Destination, brief: TripBrief) -> TripEnrichment:
     if cached is not None:
         return TripEnrichment.model_validate_json(cached)
 
+    task = _in_flight.get(key)
+    if task is None:
+        task = asyncio.create_task(_fetch(key, destination, brief))
+        _in_flight[key] = task
+        task.add_done_callback(lambda _, k=key: _in_flight.pop(k, None))
+    return await task
+
+
+async def _fetch(key: str, destination: Destination, brief: TripBrief) -> TripEnrichment:
+    """The miss path: one research call + one extraction, cached under `key`."""
     where = destination.name
     if destination.country:
         where = f"{destination.name}, {destination.country}"

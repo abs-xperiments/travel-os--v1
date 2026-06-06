@@ -32,8 +32,7 @@ SCENARIOS: dict[str, list[str]] = {
     "today": ["I'm leaving today for Kerala for 5 days."],
     # Regression sweep (existing behavior must be unchanged)
     "dubai": [
-        "5 days in Dubai in July, from Mumbai, couple, ₹1,00,000 per person, "
-        "sightseeing + food",
+        "5 days in Dubai in July, from Mumbai, couple, ₹1,00,000 per person, sightseeing + food",
         "continue with July",
     ],
     "paris": [

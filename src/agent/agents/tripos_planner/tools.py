@@ -7,11 +7,15 @@ the tested planning modules.
 
 from __future__ import annotations
 
+import asyncio
+
+from loguru import logger
 from pydantic import ValidationError
 
 from agent.tripos import (
     circuit_discovery,
     circuit_planner,
+    destination_intelligence,
     trip_intelligence,
     trip_planner,
 )
@@ -47,6 +51,32 @@ def list_destinations() -> list[dict]:
     ]
 
 
+# Background prewarm tasks — held here so they aren't garbage-collected mid-flight.
+_prewarm_tasks: set[asyncio.Task[None]] = set()
+
+
+def _prewarm_destination(destination: str) -> None:
+    """Fire-and-forget destination resolve, so the eventual build finds a warm cache.
+
+    The season check runs BETWEEN gathering and building, while the traveler is still
+    answering questions — dead time we can use. Its seasonality fetch already warms the
+    enrichment cache; this warms the other half (destination knowledge). In-flight coalescing
+    in destination_intelligence/web_intelligence guarantees a build that overlaps with this
+    never pays for the same retrieval twice. Best-effort: failures are logged and ignored —
+    the build simply retrieves fresh, exactly as before.
+    """
+
+    async def _run() -> None:
+        try:
+            await destination_intelligence.resolve(destination, _neutral_brief())
+        except Exception:
+            logger.debug("prewarm resolve failed for {!r} — build will retrieve fresh", destination)
+
+    task = asyncio.create_task(_run())
+    _prewarm_tasks.add(task)
+    task.add_done_callback(_prewarm_tasks.discard)
+
+
 async def check_travel_season(destination: str, month: int | None = None) -> dict:
     """How suitable a travel month is for a destination, plus the best months to go.
 
@@ -58,6 +88,9 @@ async def check_travel_season(destination: str, month: int | None = None) -> dic
     """
     if month is not None and not 1 <= month <= 12:
         return {"error": "month must be 1-12"}
+    # Start warming destination knowledge NOW (concurrent with the season lookup below) — by
+    # the time the traveler confirms and the build runs, retrieval is already done or underway.
+    _prewarm_destination(destination)
     profile = await trip_intelligence.season_profile(destination, _neutral_brief())
     if profile is None or not profile.months:
         return {"destination": destination, "unknown": True}
