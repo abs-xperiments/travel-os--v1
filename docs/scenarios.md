@@ -100,6 +100,36 @@ itinerary questions.
   interests (food) are all **inferred from the message** — at most one short follow-up for
   what's genuinely missing (start city), never a re-ask of anything stated.
 
+## Responsiveness & voice (added 2026-06-06)
+
+Speed without quality loss: same models, same retrieval, same plans — work just starts earlier
+(prewarming during the conversation) and progress is visible while it runs. Progress updates
+must be HONEST — a stage is shown ✓ only when that work actually completed.
+
+- **Live progress checklist:** any full build ("plan 5 days in Munnar…", all details given) →
+  while the plan is being built, the status area shows a **growing checklist** (e.g.
+  "✓ Destination intelligence retrieved → ✓ Stays & restaurants found → • Building your
+  day-by-day…"), never one frozen "Building your trip…" block for the whole wait.
+- **Prewarmed final turn:** a conversation where the destination + month are known early (so the
+  season check ran) and the traveler then answers the remaining questions → the build turn
+  starts producing the plan **much faster than a cold build** (retrieval was warmed during the
+  conversation). The plan content is **identical** to what a cold build produces.
+- **Digging-deeper stage:** a niche stay ask in a small place ("homestays in Didupe…") that
+  needs the focused second retrieval → the status honestly shows a deeper-search stage rather
+  than silence during the extra wait.
+- **Multi-leg progress:** a circuit build shows each leg completing ("✓ Planned Munnar (1/2)").
+
+Voice input (manual browser checks — Chrome/Edge/Safari):
+- **Transcribe, don't send:** press mic, say "Plan a five day Kerala trip in December" →
+  the text appears **in the input box**, the message is **NOT sent**; Send remains manual.
+- **Append, never replace:** with "Plan a Japan trip." already in the input, record "Eight
+  days." → input becomes "Plan a Japan trip. Eight days." (previous text intact, ". " joining);
+  a third recording appends again.
+- **Fully editable:** after transcription the user can edit/delete/add text before sending —
+  the input behaves like a normal text box the moment recording stops.
+- **Graceful degradation:** in a browser without speech recognition (e.g. Firefox) the mic
+  button simply isn't shown; typing and everything else works unchanged.
+
 ## Done = all scenarios pass
 
 When every scenario here behaves as written, V1 works. Add new cases as we discover them,

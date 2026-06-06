@@ -88,9 +88,25 @@ source of truth). New tools alongside `build_trip`/`build_circuit`/`discover_cir
 
 A dynamic instruction injects **today's date** each run (the Travel Context Engine), so
 relative dates ("today", "next weekend", "this December") resolve without questions.
-`src/agent/agents/tripos_planner.py` is split into a package (`prompt` / `tools` / `compact` /
-`streaming` / `agent`) to stay under the 500-line file cap; its public import surface is
-unchanged.
+`src/agent/agents/tripos_planner.py` is split into a package (`prompt` / `tools` / `recommend` /
+`compact` / `streaming` / `agent` / `progress`) to stay under the 500-line file cap; its public
+import surface is unchanged.
+
+**Responsiveness (2026-06-06).** Three mechanisms, no quality change:
+- **In-flight coalescing** — concurrent fetches for the same destination share one task
+  (`web_intelligence.gather`, `destination_intelligence.resolve`), so a background prewarm and a
+  build never pay for the same retrieval twice.
+- **Prewarming** — `check_travel_season` (which the agent calls between gathering and building)
+  already warms the enrichment cache; it now also fires a background destination resolve. By the
+  time the traveler answers the last question, both caches are warm and the build turn is fast.
+- **Live progress checklist** — `progress.py` (a per-turn Reporter behind a ContextVar) lets
+  tools report honest stages; `stream_reply` races the agent-run iterator against the progress
+  queue so ✓-checklist status events stream to the UI *while* a tool runs. Domain modules stay
+  agent-agnostic via optional `on_progress`/`on_leg_done` callbacks.
+
+**Voice input (2026-06-06)** — browser Web Speech API in `chat.html` only (feature-detected, no
+backend): transcription appends into the chat input (never replaces, never auto-sends), so voice
+is a drafting tool, not a command channel.
 
 ### F. Persistence & output
 | Module | Does one thing | Input → Output | Impl |
