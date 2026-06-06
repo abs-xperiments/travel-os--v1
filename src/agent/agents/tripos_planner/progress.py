@@ -17,7 +17,10 @@ completed — never theatrical progress.
 from __future__ import annotations
 
 import asyncio
+import json
 from contextvars import ContextVar, Token
+
+from .pieces import StreamPiece
 
 _DONE = "✓"
 _PENDING = "•"
@@ -26,7 +29,7 @@ _PENDING = "•"
 class Reporter:
     """One chat turn's checklist: ordered lines, each pending (•) or done (✓)."""
 
-    def __init__(self, queue: asyncio.Queue[str]) -> None:
+    def __init__(self, queue: asyncio.Queue[StreamPiece]) -> None:
         self._queue = queue
         self.title = ""  # set by streaming when a tool starts (e.g. "Building your trip…")
         self._lines: list[list] = []  # [label, done] pairs, in display order
@@ -36,7 +39,7 @@ class Reporter:
         parts = [self.title] if self.title else []
         for label, done in self._lines:
             parts.append(f"{_DONE} {label}" if done else f"{_PENDING} {label}…")
-        self._queue.put_nowait("\n".join(parts))
+        self._queue.put_nowait(StreamPiece(kind="status", text="\n".join(parts)))
 
     def begin(self, label: str) -> None:
         """Add a pending line (for work that's now genuinely underway)."""
@@ -73,7 +76,7 @@ class Reporter:
 _reporter: ContextVar[Reporter | None] = ContextVar("tripos_progress_reporter", default=None)
 
 
-def activate(queue: asyncio.Queue[str]) -> tuple[Reporter, Token]:
+def activate(queue: asyncio.Queue[StreamPiece]) -> tuple[Reporter, Token]:
     """Install a Reporter for this turn; returns it plus the token for deactivate()."""
     reporter = Reporter(queue)
     return reporter, _reporter.set(reporter)
@@ -104,3 +107,17 @@ def step(label: str) -> None:
 def complete() -> None:
     if (r := _reporter.get()) is not None:
         r.complete()
+
+
+def show_form(spec: dict) -> bool:
+    """Push a questionnaire spec down the turn's channel for the UI to render.
+
+    Returns False when no reporter is active (CLI, plain agent runs, tests) — the caller
+    then falls back to asking in text. The form piece rides the SAME queue as the status
+    checklist, so it reaches the browser mid-tool, before the model's closing sentence.
+    """
+    r = _reporter.get()
+    if r is None:
+        return False
+    r._queue.put_nowait(StreamPiece(kind="form", text=json.dumps(spec)))
+    return True

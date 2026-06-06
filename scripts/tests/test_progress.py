@@ -23,10 +23,12 @@ from agent.tripos.models import (
 )
 
 
-def _drain(queue: asyncio.Queue[str]) -> list[str]:
+def _drain(queue: asyncio.Queue) -> list[str]:
+    # The channel carries StreamPiece objects (since the questionnaire work); the reporter
+    # tests only care about the rendered checklist text.
     out = []
     while not queue.empty():
-        out.append(queue.get_nowait())
+        out.append(queue.get_nowait().text)
     return out
 
 
@@ -59,7 +61,7 @@ def _dest(name: str) -> Destination:
 
 
 def test_reporter_renders_growing_checklist_with_title():
-    queue: asyncio.Queue[str] = asyncio.Queue()
+    queue: asyncio.Queue = asyncio.Queue()
     reporter, token = progress.activate(queue)
     try:
         reporter.title = "Building your trip…"
@@ -82,7 +84,7 @@ def test_reporter_renders_growing_checklist_with_title():
 
 
 def test_step_completes_the_previous_step_only():
-    queue: asyncio.Queue[str] = asyncio.Queue()
+    queue: asyncio.Queue = asyncio.Queue()
     reporter, token = progress.activate(queue)
     try:
         progress.begin("Parallel work")  # begun, NOT a step — step() must not touch it

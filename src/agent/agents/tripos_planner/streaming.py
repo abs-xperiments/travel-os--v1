@@ -15,7 +15,6 @@ import asyncio
 import re
 from collections.abc import AsyncIterator
 
-from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
     ModelMessage,
@@ -29,19 +28,7 @@ from pydantic_ai.messages import (
 
 from . import progress
 from .agent import planner_agent
-
-
-class StreamPiece(BaseModel):
-    """One item from stream_reply.
-
-    kind="delta": a text chunk to render. kind="status": a transient progress note shown while
-    a tool runs (Issue 2). kind="done": end of the reply, carrying the serialized history.
-    """
-
-    kind: str  # "delta" | "status" | "done"
-    text: str = ""  # delta text, or the status message
-    messages_json: str = ""  # full serialized history (when kind == "done"), for persistence
-
+from .pieces import StreamPiece
 
 # Single-line headers per tool — the live checklist (progress.py) provides the detail beneath.
 _BUILD_STATUS = "Building your trip…"
@@ -64,11 +51,13 @@ _PROMISE_RE = re.compile(
 )
 
 # Intent-aware: a stalled stays/restaurant promise must complete THAT promise, never force a
-# full trip build the traveler didn't ask for.
+# full trip build the traveler didn't ask for — and a promised questionnaire must re-attempt
+# the FORM, never a premature build.
 _FORCE_BUILD = (
-    "Proceed now: call the tool that serves what you just promised (build_trip for a full plan, "
-    "find_stays for stays, find_restaurants for places to eat) using the details already "
-    "gathered, and present the result. Do not ask anything else."
+    "Proceed now: call the tool that serves what you just promised (request_trip_details to "
+    "gather missing trip details, build_trip for a full plan, find_stays for stays, "
+    "find_restaurants for places to eat) using the details already gathered, and present the "
+    "result. Do not ask anything else."
 )
 
 
@@ -94,9 +83,10 @@ async def stream_reply(
         last_status: str | None = None
         text_parts: list[str] = []
 
-        # The turn's progress channel: tools report stages (via progress.py helpers, inherited
-        # through the task context), and the loop below relays them while the node runs.
-        queue: asyncio.Queue[str] = asyncio.Queue()
+        # The turn's channel: tools report checklist stages AND questionnaire forms (via
+        # progress.py helpers, inherited through the task context); the loop below relays
+        # them while the node runs.
+        queue: asyncio.Queue[StreamPiece] = asyncio.Queue()
         reporter, token = progress.activate(queue)
 
         try:
@@ -113,10 +103,12 @@ async def stream_reply(
                                 {node_task, get_task}, return_when=asyncio.FIRST_COMPLETED
                             )
                             if get_task.done() and not get_task.cancelled():
-                                status = get_task.result()
-                                if status != last_status:
-                                    last_status = status
-                                    yield StreamPiece(kind="status", text=status)
+                                piece = get_task.result()
+                                if piece.kind != "status":
+                                    yield piece  # forms etc. always pass through
+                                elif piece.text != last_status:
+                                    last_status = piece.text
+                                    yield piece
                             else:
                                 get_task.cancel()
                     except BaseException:
@@ -126,12 +118,14 @@ async def stream_reply(
                         node = node_task.result()
                     except StopAsyncIteration:
                         break
-                    # Relay any stages that landed in the same instant the node completed.
+                    # Relay anything that landed in the same instant the node completed.
                     while not queue.empty():
-                        status = queue.get_nowait()
-                        if status != last_status:
-                            last_status = status
-                            yield StreamPiece(kind="status", text=status)
+                        piece = queue.get_nowait()
+                        if piece.kind != "status":
+                            yield piece
+                        elif piece.text != last_status:
+                            last_status = piece.text
+                            yield piece
 
                     if not Agent.is_model_request_node(node):
                         continue

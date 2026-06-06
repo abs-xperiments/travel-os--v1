@@ -20,9 +20,10 @@ keep working):
 
 from .agent import planner_agent
 from .compact import _parse_date
+from .pieces import StreamPiece
 from .prompt import SYSTEM_PROMPT, travel_context_now
 from .recommend import find_restaurants, find_stays, suggest_destinations
-from .streaming import _PROMISE_RE, StreamPiece, stream_reply
+from .streaming import _PROMISE_RE, stream_reply
 from .tools import (
     budget_compatibility,
     build_circuit,
