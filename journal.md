@@ -698,3 +698,11 @@ in a cleared box, never auto-sends. Browser voice checks are manual (Web Speech 
 driven by pytest) — listed in scenarios.md. Prewarm's live timing benefit on a truly cold
 destination not yet measured (mechanism unit-tested; cache-hit fast path already proven) —
 worth a timed check next time a new destination comes up naturally.
+
+## 2026-06-06 14:00 — UX/perf upgrade DEPLOYED to production (user-authorized)
+Pushed build/tripos-v1 (3d6601a) and deployed via railway up. Boot clean; prod smoke verified
+the new build on the real /chat/stream: the Didupe homestays ask streamed the full live
+checklist ("✓ Scanning stays in Didupe → ✓ Digging deeper for homestay options → ✓ Ranking
+what fits your ask") — status events that only exist in this release. Prewarm + coalescing are
+live on the same paths. Voice mic ships in this build; the manual browser voice checks
+(scenarios.md) can now be done against prod directly. main not yet fast-forwarded.
