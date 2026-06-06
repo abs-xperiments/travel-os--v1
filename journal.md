@@ -773,3 +773,10 @@ LESSON for the learnings pile: with Web Speech, treat e.results as the single so
 and rebuild from index 0 every event — any client-side accumulation WILL duplicate on mobile.
 Verification is manual/browser by nature (Web Speech can't run under pytest) — scenario added
 to scenarios.md; needs the user's phone on prod.
+
+## 2026-06-07 14:30 — Voice fix DEPLOYED to production (user-authorized)
+Pushed a71ec4a and deployed; boot clean; smoke confirmed the served chat page carries the new
+rebuild-from-results transcript code (mergeCumulative — exists only in this build). The
+decisive verification is inherently the user's phone (Android Chrome / iOS Safari live mic):
+say a sentence → appears once, interim replaces itself, pauses don't kill the recording.
+main still at 50ced9c — now two releases behind prod; fast-forward awaits user approval.
