@@ -706,3 +706,22 @@ checklist ("✓ Scanning stays in Didupe → ✓ Digging deeper for homestay opt
 what fits your ask") — status events that only exist in this release. Prewarm + coalescing are
 live on the same paths. Voice mic ships in this build; the manual browser voice checks
 (scenarios.md) can now be done against prod directly. main not yet fast-forwarded.
+
+## 2026-06-07 09:00 — DECISION REVERSAL: questionnaire-first intake (Phase C unshelved, by user)
+On 2026-06-06 the user shelved structured intake ("keep pure chat; don't re-propose
+unprompted"). Today the user explicitly specced and requested it — a questionnaire-first
+system (one form block for missing PLAN_TRIP essentials; tap-to-answer; branching; live
+"my understanding" review as the confirmation; 1 prompt + 1 form + 1 submit → plan; chat
+always available beside it; conflicts asked, never silently resolved). Recording the
+reversal so future debugging doesn't treat the old decision as current. Key architecture:
+the AGENT analyzes known-vs-missing (it owns inference) via a new request_trip_details
+tool; DETERMINISTIC code owns the UI (question bank validates field names — a model typo
+drops a question, never breaks the form); the form rides the same per-turn ContextVar
+channel as the progress checklist (unified on StreamPiece); submitted answers travel as a
+normal chat message so the conversation stays the single source of truth. NO new TripBrief
+fields in V1 — style/accommodation/Tier-3 answers ride the composed message into existing
+personalization args. Bundled (user choice): split the monolithic enrichment extraction
+into four parallel slice extractors (same single research call, same model — the season
+check stops paying ~40s for stays/food/weather it doesn't need) + concise presentation.
+Season advisory stays a post-form turn when the month is genuinely bad — the one
+legitimate follow-up; honesty beats the 1-submission metric there.

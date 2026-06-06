@@ -50,7 +50,20 @@ recommendations exactly as they constrain full plans.
 ## Step by step (PLAN_TRIP)
 
 1. **Greet & offer two ways in:** *Discover My Trip* (no destination yet) or *Plan a Destination* (they know where).
-2. **Gather only what's missing, conversationally** — one or two questions at a time, never a form: start city, number of days, **when they're travelling** (a month is enough; exact dates are kept if given — they'll matter for booking later; "flexible / not sure" is a valid answer), who's travelling (group type), budget, interests/travel style, pace, food preference. **Infer aggressively from what was already said** ("with my wife" → couple of 2; "leaving today" → this month; "we love food" → food interest) and **never re-ask anything already stated**.
+2. **Gather what's missing in ONE questionnaire, not a drip of questions** *(updated
+   2026-06-07 — supersedes the earlier "one question at a time" style for trip planning; a
+   user-directed reversal of the 2026-06-06 pure-chat decision)*: when essentials are missing
+   (start city, days, when — a month is enough, "flexible" valid; group + headcount; per-person
+   budget; interests), show a single structured questionnaire collecting exactly the missing
+   items — tap-to-answer choices with "Something else" custom input everywhere, typed budget,
+   month picker, multi-select interests, style-driven sub-questions (road trip / luxury /
+   budget). What's already known is echoed in the form's header, **never re-asked**. The form's
+   live "my understanding" summary + its single submit button are the confirmation — one
+   submission then the plan. **Infer aggressively from what was already said** ("with my wife"
+   → couple of 2; "leaving today" → this month) and **never re-ask anything already stated**.
+   Chat stays fully usable beside the form (answers may be typed instead); a conflict between
+   chat and form is resolved by asking one line — never silently. In the CLI (no form UI),
+   fall back to one compact bullet-list question.
 3. **If no destination:** recommend 2–3 destinations (or routes), each with a one-line *why* that ties back to their budget/days/interests; let them pick. **Rank by budget compatibility first** — the best-fitting option leads; pricier alternatives are labelled as such ("a stretch" / "premium"), never presented as the default.
 4. **Assess the season before planning** — once destination + travel month are known, judge how suitable that month is (**excellent / good / acceptable / challenging / not recommended**) using retrieved seasonal knowledge, never the model's memory.
    - **Challenging or not recommended:** before building anything, give a short, friendly advisory — what's hard about the month (heat / monsoon / cyclone risk / peak crush), the recommended window and *why it's better* — then offer the choice: keep these dates, or look at the better window. **Wait for their answer.**

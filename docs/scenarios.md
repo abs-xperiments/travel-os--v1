@@ -130,6 +130,40 @@ Voice input (manual browser checks — Chrome/Edge/Safari):
 - **Graceful degradation:** in a browser without speech recognition (e.g. Firefox) the mic
   button simply isn't shown; typing and everything else works unchanged.
 
+## Questionnaire-first planning (added 2026-06-07)
+
+*(Supersedes the "one question at a time" gathering style for PLAN_TRIP — a user-directed
+reversal of the 2026-06-06 "pure chat" decision. Goal: 1 prompt + 1 questionnaire +
+1 submission → plan. Chat always remains available alongside the form.)*
+
+- **Smart form, only the gaps:** "Plan a 4-day trip to Coorg from Chennai for 2 people." →
+  ONE questionnaire block appears in the chat asking ONLY what's missing (dates, budget,
+  interests) — destination/origin/duration/travelers are echoed in its header ("Got it:
+  Coorg · 4 days · 2 people"), **never re-asked**. No field-by-field text questions.
+- **One submit → plan:** filling the form (tap-chips for choices, multi-select interests,
+  typed budget, month picker with a "Flexible" option) and pressing **Build my trip** leads
+  straight to the plan — the live "my understanding" strip inside the form is the
+  confirmation; no extra round-trip, no further text questions for answered fields.
+- **Branching:** choosing style "Road Trip" reveals self-drive + max-driving-hours
+  sub-questions; "Luxury" reveals resort/fine-dining; "Budget" reveals hostel/shared-transport
+  acceptability. Irrelevant branches never appear.
+- **Challenging month still advises:** form submitted with July for Dubai → ONE season
+  advisory turn (keep or shift?), then the plan on confirmation — the advisory is deliberate
+  product behavior, the only legitimate post-form follow-up.
+- **Conflict is asked, never silently resolved:** form said ₹15,000, then the user types
+  "actually I can stretch to ₹30,000" → the agent asks one line ("which budget should I
+  use?") and uses the answer.
+- **Chat override (hybrid):** the user ignores the form and answers in plain text → the agent
+  proceeds from the text; the unused form simply stays behind, irrelevant.
+- **CLI fallback:** in the terminal (`uv run agent`, no form UI) the same situation produces
+  a compact bullet-list question in text — never an error.
+- **Cold season check is fast (split extraction):** a season check on a destination nobody has
+  asked about recently completes in roughly a third of the old time (seasonality is extracted
+  first; stays/food/weather finish in the background) — with **identical verdicts** and all
+  enrichment slices still populated for the build that follows.
+- **Concise replies:** plans lead with the itinerary; same facts, ranges, and honesty
+  contract — noticeably tighter prose.
+
 ## Done = all scenarios pass
 
 When every scenario here behaves as written, V1 works. Add new cases as we discover them,

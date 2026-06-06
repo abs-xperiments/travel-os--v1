@@ -108,6 +108,24 @@ import surface is unchanged.
 backend): transcription appends into the chat input (never replaces, never auto-sends), so voice
 is a drafting tool, not a command channel.
 
+**Questionnaire-first gathering (2026-06-07).** PLAN_TRIP with missing essentials renders ONE
+structured form block in chat instead of drip-fed questions. Division of labour: the **agent
+analyzes** (decides what's known vs missing — it owns inference) and calls
+`request_trip_details(known, missing, style)`; **deterministic code owns the UI** — a question
+bank (`questionnaire.py`) maps validated field names to question specs (unknown names dropped
+harmlessly), assembles the form JSON, fires the destination prewarm (retrieval hides inside
+form-filling time), and pushes a `kind="form"` piece down the same per-turn channel the progress
+checklist uses (the channel now carries `StreamPiece`s — see `pieces.py`). The browser renders
+chips/inputs with conditional branching and a live "my understanding" review strip; submit
+composes a readable message through the normal chat path, so the conversation stays the single
+source of truth (persistence free, advisories unchanged, no new TripBrief fields). CLI gets a
+text-bullet fallback automatically (no active channel).
+
+**Split extraction (2026-06-07).** Enrichment keeps ONE research call but extracts the four
+slices (stays / restaurants / weather / seasonality) in PARALLEL with small focused extractors
+instead of one monolithic structured output — wall-clock ≈ the slowest slice. The season check
+awaits only the seasonality slice; the rest finish in the background into the same cache entry.
+
 ### F. Persistence & output
 | Module | Does one thing | Input → Output | Impl |
 |--------|----------------|----------------|------|
