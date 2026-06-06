@@ -16,28 +16,26 @@ from __future__ import annotations
 
 import asyncio
 import json
-import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, Form, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
+from agent import web_auth
 from agent.agents.tripos_planner import stream_reply
-from agent.config import get_settings
 from agent.logging_setup import setup_logging
 from agent.services import db
-from agent.tripos import knowledge_cache, trip_intelligence, trip_store
+from agent.tripos import accounts, knowledge_cache, trip_intelligence, trip_store
 
 HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 
-AUTH_COOKIE = "tripos_auth"  # holds the app password once logged in
-SESSION_COOKIE = "tripos_session"  # holds the current trip id
+SESSION_COOKIE = "tripos_session"  # holds the current trip id (NOT the auth session)
 
 GREETING = (
     "Hi! I'm **TripOS**, your AI travel planner for destinations **anywhere in the world**. 🌍\n\n"
@@ -59,8 +57,10 @@ EXAMPLES = [
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     setup_logging()
+    # Order matters: accounts' migration 005 alters tripos_trips (created by trip_store's 001).
     applied = (
         await trip_store.init_db()
+        + await accounts.init_db()
         + await knowledge_cache.init_db()
         + await trip_intelligence.init_db()
     )
@@ -80,65 +80,68 @@ def _remember_session(response: Response, trip_id: str) -> None:
 
 
 @app.middleware("http")
-async def password_gate(
+async def resolve_user(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
-    """If APP_PASSWORD is set, require login before any page (no password = open, for dev)."""
-    password = get_settings().app_password
-    if password and request.url.path != "/login":
-        cookie = request.cookies.get(AUTH_COOKIE, "")
-        if not secrets.compare_digest(cookie, password):
-            return RedirectResponse("/login", status_code=303)
+    """Attach the signed-in user (or None) to every request.
+
+    Authentication is plumbing, never a wall: pages render for everyone; the routes that
+    touch user data check `request.state.user` themselves (and the trip queries are
+    user-scoped in SQL regardless — defense in depth).
+    """
+    request.state.user = None
+    raw = request.cookies.get(web_auth.SID_COOKIE)
+    if raw:
+        try:
+            request.state.user = await accounts.resolve_session(raw)
+        except Exception:
+            logger.exception("session resolve failed — continuing logged out")
     return await call_next(request)
 
 
-@app.get("/login")
-async def login_form(request: Request) -> Response:
-    if not get_settings().app_password:
-        return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(request, "login.html", {"error": False})
-
-
-@app.post("/login")
-async def login(request: Request, password: Annotated[str, Form()]) -> Response:
-    expected = get_settings().app_password or ""
-    if expected and secrets.compare_digest(password, expected):
-        response = RedirectResponse("/", status_code=303)
-        response.set_cookie(
-            AUTH_COOKIE, password, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7
-        )
-        return response
-    return templates.TemplateResponse(request, "login.html", {"error": True}, status_code=401)
+app.include_router(web_auth.router)
 
 
 @app.get("/")
 async def index(request: Request) -> Response:
-    trip_id = await trip_store.ensure_trip(request.cookies.get(SESSION_COOKIE))
-    trip = await trip_store.get_trip(trip_id)
-    response = templates.TemplateResponse(
+    """The chatbot IS the landing page — logged out it's browsable, sending needs sign-in.
+
+    Trips are created lazily on the first authed message (never on page views), so this
+    only LOADS an existing owned trip when the cookie points at one.
+    """
+    user = request.state.user
+    trip = None
+    trip_id = request.cookies.get(SESSION_COOKIE)
+    if user is not None and trip_id:
+        trip = await trip_store.get_trip(trip_id, user.id)
+    return templates.TemplateResponse(
         request,
         "chat.html",
         {
             "greeting": GREETING,
             "transcript": trip.transcript if trip else [],
-            "trip_id": trip_id,
+            "trip_id": trip.id if trip else "",
             "examples": EXAMPLES,
+            "user": user,
         },
     )
-    _remember_session(response, trip_id)
-    return response
 
 
 @app.post("/chat/stream")
-async def chat_stream(request: Request, message: Annotated[str, Form()]) -> StreamingResponse:
+async def chat_stream(request: Request, message: Annotated[str, Form()]) -> Response:
     """Stream the assistant's reply as Server-Sent Events; persist the turn once it completes.
 
     Each event is `data: {"t": "<delta>"}` (a text chunk), then a final `data: {"done": true}`.
     Errors come back as `data: {"error": "..."}`. If the client disconnects (e.g. the user
     sends another message), the generator is cancelled and the partial turn is simply not saved.
     """
-    trip_id = await trip_store.ensure_trip(request.cookies.get(SESSION_COOKIE))
-    history = await trip_store.load_agent_messages(trip_id)
+    user = request.state.user
+    if user is None:  # sending is the gate — the chat itself is free to explore
+        return JSONResponse(
+            {"auth": "Sign in to start planning and save your trips."}, status_code=401
+        )
+    trip_id = await trip_store.ensure_owned_trip(request.cookies.get(SESSION_COOKIE), user.id)
+    history = await trip_store.load_agent_messages(trip_id, user.id)
 
     async def events() -> AsyncIterator[str]:
         parts: list[str] = []
@@ -153,7 +156,7 @@ async def chat_stream(request: Request, message: Annotated[str, Form()]) -> Stre
                     yield f"data: {json.dumps({'form': json.loads(piece.text)})}\n\n"
                 elif piece.kind == "done":
                     await trip_store.append_turn(
-                        trip_id, message, "".join(parts), piece.messages_json
+                        trip_id, user.id, message, "".join(parts), piece.messages_json
                     )
                     yield f"data: {json.dumps({'done': True})}\n\n"
         except asyncio.CancelledError:
@@ -174,8 +177,12 @@ async def chat_stream(request: Request, message: Annotated[str, Form()]) -> Stre
 
 @app.get("/trip/{trip_id}")
 async def open_trip(request: Request, trip_id: str) -> Response:
-    """Reopen a saved trip from its URL (also the shareable link) and continue it."""
-    trip = await trip_store.get_trip(trip_id)
+    """Reopen one of YOUR saved trips. A foreign trip is a 404 — indistinguishable from
+    one that never existed (trips are private to their owner)."""
+    user = request.state.user
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    trip = await trip_store.get_trip(trip_id, user.id)
     if trip is None:
         return HTMLResponse("Trip not found", status_code=404)
     response = templates.TemplateResponse(
@@ -186,6 +193,7 @@ async def open_trip(request: Request, trip_id: str) -> Response:
             "transcript": trip.transcript,
             "trip_id": trip_id,
             "examples": EXAMPLES,
+            "user": user,
         },
     )
     _remember_session(response, trip_id)
@@ -194,8 +202,11 @@ async def open_trip(request: Request, trip_id: str) -> Response:
 
 @app.get("/trip/{trip_id}/print")
 async def print_trip(request: Request, trip_id: str) -> Response:
-    """A clean, print-optimized page — use the browser's 'Save as PDF' to export."""
-    trip = await trip_store.get_trip(trip_id)
+    """A clean, print-optimized page — owner-only, like every trip view."""
+    user = request.state.user
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    trip = await trip_store.get_trip(trip_id, user.id)
     if trip is None:
         return HTMLResponse("Trip not found", status_code=404)
     return templates.TemplateResponse(
@@ -207,9 +218,12 @@ async def print_trip(request: Request, trip_id: str) -> Response:
 
 @app.get("/trips")
 async def trips(request: Request) -> Response:
-    """The saved-trips dashboard."""
-    recent = await trip_store.list_recent()
-    return templates.TemplateResponse(request, "trips.html", {"trips": recent})
+    """The saved-trips dashboard — only ever YOUR trips."""
+    user = request.state.user
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    recent = await trip_store.list_recent(user.id)
+    return templates.TemplateResponse(request, "trips.html", {"trips": recent, "user": user})
 
 
 @app.get("/reset")

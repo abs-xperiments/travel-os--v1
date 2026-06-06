@@ -1,6 +1,8 @@
-"""Integration test: trip_store persists, reopens, and lists trips (needs DATABASE_URL).
+"""Integration test: trip_store persists, reopens, lists — and ISOLATES — trips.
 
-Uses a throwaway trip row and deletes it afterward.
+Every trip belongs to one user (since the accounts cutover); ownership is enforced in the
+SQL itself. Uses throwaway users + trips, cleaned up afterward (un-claiming is not needed
+here because these test trips are created already-owned, never claimed legacy rows).
 
     uv run pytest -m integration scripts/tests/test_trip_store.py
 """
@@ -10,24 +12,29 @@ from __future__ import annotations
 import pytest
 
 from agent.services import db
-from agent.tripos import trip_store
+from agent.tripos import accounts, trip_store
 
 pytestmark = pytest.mark.integration
 
 
-async def test_create_append_reopen_and_list():
+async def test_create_append_reopen_list_and_isolation():
     await trip_store.init_db()
-    trip_id = await trip_store.ensure_trip(None)
+    await accounts.init_db()
+    owner, _ = await accounts.find_or_create_user("test.tripstore.owner@example.com", "email")
+    other, _ = await accounts.find_or_create_user("test.tripstore.other@example.com", "email")
+    trip_id = await trip_store.ensure_owned_trip(None, owner.id)
     try:
-        # fresh trip: exists, empty transcript
-        trip = await trip_store.get_trip(trip_id)
+        # fresh trip: exists for the owner, empty transcript
+        trip = await trip_store.get_trip(trip_id, owner.id)
         assert trip is not None
         assert trip.transcript == []
 
         # save one turn (empty but valid serialized agent history)
-        await trip_store.append_turn(trip_id, "Plan Goa for 3 days", "Here is your Goa plan…", "[]")
+        await trip_store.append_turn(
+            trip_id, owner.id, "Plan Goa for 3 days", "Here is your Goa plan…", "[]"
+        )
 
-        reopened = await trip_store.get_trip(trip_id)
+        reopened = await trip_store.get_trip(trip_id, owner.id)
         assert reopened is not None
         assert reopened.title is not None and reopened.title.startswith("Plan Goa")
         assert len(reopened.transcript) == 2
@@ -35,9 +42,22 @@ async def test_create_append_reopen_and_list():
         assert reopened.transcript[1].role == "assistant"
 
         # the agent history round-trips (empty list here)
-        assert await trip_store.load_agent_messages(trip_id) == []
+        assert await trip_store.load_agent_messages(trip_id, owner.id) == []
 
-        # shows up in the dashboard list
-        assert trip_id in {t.id for t in await trip_store.list_recent()}
+        # shows up in the OWNER's dashboard list…
+        assert trip_id in {t.id for t in await trip_store.list_recent(owner.id)}
+
+        # …and is INVISIBLE to anyone else (the isolation requirement).
+        assert await trip_store.get_trip(trip_id, other.id) is None
+        assert await trip_store.load_agent_messages(trip_id, other.id) == []
+        assert trip_id not in {t.id for t in await trip_store.list_recent(other.id)}
+
+        # a stale/foreign cookie id yields a FRESH trip for the other user, never this one
+        fresh = await trip_store.ensure_owned_trip(trip_id, other.id)
+        assert fresh != trip_id
+        await db.execute("DELETE FROM tripos_trips WHERE id = $1", fresh)
     finally:
         await db.execute("DELETE FROM tripos_trips WHERE id = $1", trip_id)
+        for u in (owner, other):
+            await db.execute("UPDATE tripos_trips SET user_id = NULL WHERE user_id = $1", u.id)
+            await db.execute("DELETE FROM tripos_users WHERE id = $1", u.id)
