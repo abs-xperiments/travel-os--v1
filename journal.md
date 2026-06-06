@@ -666,3 +666,11 @@ bias) + full budget contract; Goa luxury ₹30k → conflict advisory with lever
 downgrade. Verdict: the intent-first restructure changed non-planning conversations without
 regressing the planning ones — the nesting-not-rewording approach to the advisory text worked.
 Kept scripts/validate_v2.py as the reusable Layer-3 driver.
+
+## 2026-06-06 12:00 — V2 Intelligence Upgrade DEPLOYED to production (user-authorized)
+Pushed build/tripos-v1 (a434ead) to GitHub and deployed the working tree to the prod Railway
+service (railway up --service tripos-web). Boot clean; prod smoke verified the new build live:
+"Best seafood restaurants in Kochi" through the real /chat/stream returned the V2 status
+("Finding great places to eat…" — a string that only exists in this build) and streamed
+recommendations directly, zero slot-gathering. The intent-first consultant is live.
+main not yet fast-forwarded — awaiting explicit go-ahead, per convention.
