@@ -805,3 +805,21 @@ and input.readOnly absent from the shipped code — the mobile edit lock is gone
 Decisive verification is the user's phone: tap into the transcript mid-recording → mic stops,
 cursor lands, keyboard opens; mic states visually obvious. main still at 50ced9c — three
 releases behind prod; fast-forward awaits user approval.
+
+## 2026-06-07 17:00 — DECISION SUPERSEDED: shared password gate → passwordless accounts (user spec)
+The 2026-06-01 V1 decision ("auth is a single shared APP_PASSWORD gate, not per-user
+accounts") is superseded by a full user spec: TripOS should feel like a premium AI product —
+chatbot as landing page, passwordless auth (Google primary + email magic link via Resend,
+user-specified), unified signup/login (system decides new-vs-existing; one account per email),
+~90-day persistent sessions, per-user trip isolation, profile with avatar, branded splash,
+PWA. Security review (independent design pass) baked in the big ones BEFORE code: (1) email
+scanners prefetch magic links → GET shows a confirm page, only POST consumes (atomic
+conditional UPDATE — double-click safe); (2) session tokens sha256-hashed at rest; (3) Google
+via the userinfo endpoint (no unverified id_token decoding) + email_verified required before
+merge; (4) ownership enforced in trip_store SQL with 404-not-403; (5) lazy trip creation
+(today EVERY anonymous visit INSERTs a row) + stale-cookie cross-user fix; (6) in-DB rate
+limits + enumeration-proof generic responses; (7) no ?next= param at all. Legacy ownerless
+trips: claimed by the FIRST account created (user-approved — it's their own test history),
+race-free inside the user-creation transaction. APP_PASSWORD gate will be REMOVED at cutover
+(sending is auth-gated, so API spend stays protected). User action items: Resend API key
+(blocks deploy), Google OAuth creds (button auto-appears when set), pick a fal-generated icon.

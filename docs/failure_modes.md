@@ -55,3 +55,19 @@ A plain, friendly, honest message **plus a next step** — e.g. *"I couldn't fet
 weather, so I'm using typical early-June conditions for Munnar (often rainy). Want me to
 keep going and favor indoor-friendly spots?"* A confident wrong answer is worse than an
 honest "here's what I'm not sure about."
+
+## Accounts & authentication failures (added 2026-06-07)
+
+| What could go wrong | How likely / how bad | How TripOS should handle it |
+|---------------------|----------------------|------------------------------|
+| **Email scanner consumes the magic link** before the human clicks (Outlook/Gmail prefetch GETs) | high / bad | The link's GET never consumes — it shows a "Confirm sign-in" page; only the button's POST consumes the token (atomically). Scanners don't press buttons. |
+| **Expired or already-used link** clicked | high / mild | Friendly "this link has expired — request a new one" page with the email box right there. Never a stack trace, never a dead end. |
+| **Email delivery fails** (Resend down, bad address) | medium / bad | Honest message ("couldn't send right now — try again in a minute"); errors logged; the generic success message still never reveals whether an account exists. |
+| **Account enumeration** via the email form | medium / mild | Same response whether the address is new, existing, or rate-limited: "Check your email." |
+| **Magic-link spam** (someone hammers a victim's inbox) | medium / mild | Per-email and per-IP hourly caps, silently enforced behind the same generic response. |
+| **Stale trip cookie from another account** on a shared device | medium / bad | Trip cookie is honoured only if the trip belongs to the signed-in user; login clears it. Worst case: a fresh trip, never someone else's. |
+| **Another user's trip URL opened** (incl. /print) | medium / bad | 404 — indistinguishable from a trip that never existed. |
+| **Unverified Google email** trying to merge into an existing account | low / bad | `email_verified=true` required before find-or-create; otherwise refused. |
+| **Session cookie sent over plain HTTP in prod** | low / bad | `COOKIE_SECURE=true` is a documented mandatory prod var; startup warns when the base URL is https but the flag is off. |
+| **Production lockout at cutover** (email misconfigured → nobody can sign in) | low / very bad | Full local E2E with the real Resend key before deploying; rollback = redeploy the previous build. |
+| **User expects a password** ("how do I set a password?") | medium / mild | There are none, by design — the login page says so plainly ("we'll email you a sign-in link; no password needed"). |

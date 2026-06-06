@@ -178,6 +178,51 @@ reversal of the 2026-06-06 "pure chat" decision. Goal: 1 prompt + 1 questionnair
 - **Concise replies:** plans lead with the itinerary; same facts, ranges, and honesty
   contract — noticeably tighter prose.
 
+## Accounts & entry (added 2026-06-07 — supersedes the shared-password gate)
+
+Authentication exists only to save trips, restore conversations, and protect user data —
+planning stays the product. Passwordless only: Google or email magic link; Login and Sign Up
+are the same mechanism (the system decides new-vs-existing after auth; one account per email,
+ever).
+
+- **Logged-out browsing:** opening TripOS shows the chat (greeting, examples, input) with
+  Login / Sign Up top-right — no marketing page, no wall. Attempting to SEND shows
+  "Sign in to start planning and save your trips" with a way into login. Nothing is planned,
+  nothing is spent, no trip row is created.
+- **Email magic link (new user):** enter email → "Check your email" (same message whether or
+  not the account exists — no enumeration) → click the link → a "Confirm sign-in" page with
+  one button → pressing it signs in → asked once "What should we call you?" → enters TripOS.
+- **Email magic link (returning user):** same flow, no name question, lands straight in chat.
+- **Scanner-proof links:** a mail scanner GET-ing the link (curl simulation) does NOT consume
+  it — the human's confirm click still works. A link works exactly once; a second use or a
+  15-minute-old link shows a friendly "request a new one" page, never an error trace.
+- **Persistent session:** sign in once → return tomorrow / next week / next month still
+  signed in (90-day rolling). Logout, or a long absence, requires signing in again.
+- **Google (when configured):** "Continue with Google" → pick account → straight in; name,
+  email, photo imported automatically; an existing email account just logs in (no duplicate);
+  an unverified Google email is refused (never merges into someone's account).
+- **Isolation (hard requirement):** Saved Trips shows ONLY my trips. Opening another user's
+  trip URL (including its /print view) → 404, indistinguishable from non-existent. A stale
+  trip cookie from another account on this device opens a FRESH trip, never theirs.
+- **Legacy claim:** the first account ever created automatically owns all pre-auth trips
+  (the founder's testing history); the second account owns nothing it didn't create.
+- **Logged-in nav:** TripOS left; New Trip · Saved Trips · avatar right; avatar menu shows
+  picture/name/email, Edit Profile, Saved Trips, Settings, Logout. Profile allows editing
+  name and uploading a photo (email read-only).
+
+## Splash & app feel (added 2026-06-07; manual browser checks)
+
+- **First visit:** branded splash ≤4s — monochrome "TripOS / Your AI Travel Partner" upper-
+  middle, minimal railway track near the bottom, a vintage steam locomotive crossing left→
+  right, steam rising white→brand colors carrying destination names (Kyoto, Bali, Paris,
+  Santorini, Munnar, Ladakh…), the steam visibly "painting" the logo to full color, then a
+  smooth fade into the chat. Silent. No hard cuts.
+- **Return visits:** only a 0.5–1s logo reveal + quick sweep — the app opens essentially
+  immediately. Users with reduced-motion set get the quick variant always.
+- **PWA:** visiting on Chrome/Android offers Install (native prompt once criteria met);
+  iOS Safari users can Add to Home Screen; the installed icon opens TripOS standalone,
+  feeling like an app. Lighthouse PWA installability passes.
+
 ## Done = all scenarios pass
 
 When every scenario here behaves as written, V1 works. Add new cases as we discover them,

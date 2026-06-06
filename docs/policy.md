@@ -202,7 +202,20 @@ traveler receives IS the product**. Traveler outcomes are a first-class quality 
 real traveler would call a recommendation incorrect, misleading, unrealistic, or poorly
 personalized, the feature is not complete — whatever the test coverage says.
 
+## Accounts & entry (added 2026-06-07)
+
+Authentication is plumbing, never the experience: it exists only to save trips, restore
+conversations, and protect user data. The chatbot is the landing page; logged-out visitors see
+and explore it freely, and only SENDING requires sign-in ("Sign in to start planning and save
+your trips"). Passwordless only — Google or an emailed sign-in link; Login and Sign Up are the
+same mechanism (the system decides new-vs-existing after authentication; one account per
+email, always). Sessions persist ~90 days rolling — sign in once, stay signed in. Every trip
+belongs to exactly one user; nobody can ever see another user's trips (enforced in the data
+layer, not just routes).
+
 ## V1 scope notes (decided 2026-06-01)
 
 - **Trip Comparison** (Plan A/B/C side by side): **promoted to V1** (decided 2026-06-06) — to be designed and built as its **own feature, after seasonality-aware planning ships**. Sequencing is deliberate: the most useful comparison ("Dubai in July vs December") needs seasonality to exist first.
-- **Auth** is a single shared **password gate** (`APP_PASSWORD`), not per-user accounts.
+- **Auth**: ~~a single shared password gate (`APP_PASSWORD`)~~ — **superseded 2026-06-07** by
+  passwordless per-user accounts (Google OAuth + email magic link via Resend); see
+  "Accounts & entry" above.
