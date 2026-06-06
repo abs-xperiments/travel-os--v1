@@ -129,6 +129,13 @@ Voice input (manual browser checks — Chrome/Edge/Safari):
   the input behaves like a normal text box the moment recording stops.
 - **Graceful degradation:** in a browser without speech recognition (e.g. Firefox) the mic
   button simply isn't shown; typing and everything else works unchanged.
+- **Mobile transcript integrity (added 2026-06-07, after a live-caught Android bug):** on
+  Android Chrome / iOS Safari, saying "Plan a 5 day trip to Bangalore with my parents" must
+  produce that sentence ONCE — never the cumulative ladder ("plan… plan a… plan a 5…").
+  Interim text visibly REPLACES itself while speaking; a natural pause mid-recording does
+  not stop the mic (the engine restarts silently and the finished phrase is kept); tapping
+  stop ends it. The engine's results list is the only transcript state — no client-side
+  accumulation.
 
 ## Questionnaire-first planning (added 2026-06-07)
 

@@ -754,3 +754,22 @@ multi-select interests, pace) — an event kind that only exists in this release
 fully-specified Dubai prompt produced ZERO form events and went straight to the season check
 (advisory streamed) — the form never over-triggers. Split extraction + seasonality-fast path
 + concise presentation are live on the same paths. main not yet fast-forwarded.
+
+## 2026-06-07 14:00 — Mobile voice bug: never keep a client-side transcript accumulator
+User hit real duplication on mobile ("plan… plan a… plan a 5…" appended forever). ROOT CAUSE
+was in my original handler: it kept a `finals` accumulator and appended on every isFinal
+event. Desktop Chrome emits each final segment once, so it worked there — but Android Chrome
+(and iOS Safari) re-send the transcript CUMULATIVELY and mark growing prefixes final
+repeatedly, so every prefix got appended as a new "sentence". FIX (architecture, not patch):
+no accumulator at all — every onresult REBUILDS the session text from e.results[0..n] (the
+engine's list IS the state; idempotent, so re-sent events cannot duplicate), with a
+cumulative-merge that absorbs both engine shapes (desktop: distinct segments → append;
+mobile: growing prefix → replace; repeated tail → ignore). Also fixed the LIFECYCLE half:
+mobile engines end themselves after a pause despite continuous=true — previously that killed
+the recording; now, while the user hasn't tapped stop, the finished session is committed into
+the base text (". " boundary = natural sentence break) and a fresh engine session starts
+silently. Hard errors (not-allowed/audio-capture) still stop for real; no-speech is benign.
+LESSON for the learnings pile: with Web Speech, treat e.results as the single source of truth
+and rebuild from index 0 every event — any client-side accumulation WILL duplicate on mobile.
+Verification is manual/browser by nature (Web Speech can't run under pytest) — scenario added
+to scenarios.md; needs the user's phone on prod.

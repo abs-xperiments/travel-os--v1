@@ -362,11 +362,22 @@
   // Speech is transcribed INTO the input box and APPENDED to whatever is already there —
   // it never replaces existing text and never auto-sends. The user reviews, edits, and
   // presses Send themselves. Unsupported browsers (e.g. Firefox) simply never see the mic.
+  //
+  // Transcript architecture (mobile root-cause fix, 2026-06-07): we keep NO accumulator
+  // across recognition events. Mobile engines (Android Chrome, iOS Safari) re-send the
+  // transcript CUMULATIVELY and mark growing prefixes `isFinal` repeatedly — any client-side
+  // "append each final" logic duplicates text ("plan… plan a… plan a 5…"). Instead the
+  // engine's own results list is the single source of truth: every event REBUILDS the
+  // session text from e.results[0..n] (idempotent — re-sent events can't duplicate), with a
+  // cumulative-merge absorbing both shapes (desktop: distinct segments; mobile: growing
+  // prefixes). Mobile engines also END themselves after a pause despite continuous=true, so
+  // while the user hasn't tapped stop we COMMIT the finished session and restart a fresh one.
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const mic = document.getElementById('chat-mic');
-  let rec = null;       // the active recognition session; null when idle
-  let voiceBase = '';   // text already in the box when this recording started
-  let finals = '';      // finalized speech from this recording session
+  let rec = null;        // the active recognition session; null when idle
+  let recording = false; // USER intent: true from tap-start until tap-stop/submit
+  let voiceBase = '';    // committed text: box content at start + finished pause-sessions
+  let session = '';      // the CURRENT engine session's text, rebuilt on every event
 
   // "Plan a Japan trip." + "Eight days." -> "Plan a Japan trip. Eight days."
   function joinSpeech(a, b) {
@@ -374,6 +385,24 @@
     if (!a) return b;
     if (!b) return a;
     return a + (/[.!?,;:]$/.test(a) ? ' ' : '. ') + b;
+  }
+
+  // Merge one engine result into the session being rebuilt. Mobile engines re-send the
+  // WHOLE transcript so far as the next entry — when the new text extends what we have
+  // (or repeats its tail), replace/skip instead of appending a duplicate.
+  function mergeCumulative(acc, t) {
+    t = (t || '').trim();
+    if (!t) return acc;
+    if (!acc) return t;
+    const norm = (s) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+    const a = norm(acc), b = norm(t);
+    if (b.startsWith(a)) return t;    // cumulative re-send: the new text supersedes ours
+    if (a.endsWith(b)) return acc;    // duplicate re-send of the last chunk: ignore
+    return acc + ' ' + t;             // a genuinely new segment (desktop continuous mode)
+  }
+
+  function renderVoice() {
+    input.value = joinSpeech(voiceBase, session);
   }
 
   function setRecordingUI(on) {
@@ -384,46 +413,65 @@
     input.readOnly = on;   // typing can't fight the live transcription mid-recording
   }
 
+  function startSession() {
+    rec = new SR();                // fresh instance per session (mobile engines require it)
+    rec.lang = 'en-IN';
+    rec.continuous = true;
+    rec.interimResults = true;     // live preview while speaking
+    rec.onresult = (e) => {
+      // REBUILD from the engine's full results list every time — never accumulate across
+      // events, never trust resultIndex. Interim and final entries are treated alike: the
+      // list itself is the state, so a re-sent or upgraded entry can't duplicate text.
+      let s = '';
+      for (let i = 0; i < e.results.length; i++) {
+        s = mergeCumulative(s, e.results[i][0].transcript);
+      }
+      session = s;
+      renderVoice();
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed' ||
+          e.error === 'audio-capture') {
+        mic.title = 'Microphone access was denied';
+        stopVoice();               // hard failure: stop for real
+      }
+      // 'no-speech' / 'aborted' are benign — onend follows and decides what to do.
+    };
+    rec.onend = () => {
+      if (!recording) return;      // user stopped; stopVoice() already cleaned up
+      // The engine ended ITSELF (mobile pause). Commit this session and keep listening.
+      voiceBase = joinSpeech(voiceBase, session);
+      session = '';
+      try { startSession(); } catch { stopVoice(); }
+    };
+    rec.start();
+  }
+
   function stopVoice() {
+    recording = false;
     if (rec) {
       const r = rec;
       rec = null;
-      r.onresult = null;   // no stale text can land in the box after we let go
+      r.onresult = null;           // no stale text can land in the box after we let go
       r.onend = null;
-      r.stop();
+      r.onerror = null;
+      try { r.stop(); } catch { /* already ended */ }
     }
     setRecordingUI(false);
   }
 
   function startVoice() {
-    rec = new SR();
-    rec.lang = 'en-IN';
-    rec.continuous = true;       // keep listening until the user taps stop
-    rec.interimResults = true;   // live preview while speaking
-    voiceBase = input.value;
-    finals = '';
-    rec.onresult = (e) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finals = joinSpeech(finals, t.trim());
-        else interim += t;
-      }
-      input.value = joinSpeech(voiceBase, joinSpeech(finals, interim.trim()));
-    };
-    rec.onerror = (e) => {
-      if (e.error === 'not-allowed') mic.title = 'Microphone access was denied';
-      stopVoice();
-    };
-    rec.onend = () => { if (rec) { stopVoice(); input.focus(); } };  // engine gave up (silence)
-    rec.start();
+    voiceBase = input.value;       // append-mode: snapshot what's already typed
+    session = '';
+    recording = true;
+    try { startSession(); } catch { recording = false; return; }
     setRecordingUI(true);
   }
 
   if (SR && mic) {
     mic.hidden = false;
     mic.addEventListener('click', () => {
-      if (rec) { stopVoice(); input.focus(); } else { startVoice(); }
+      if (recording) { stopVoice(); input.focus(); } else { startVoice(); }
     });
   }
 })();
