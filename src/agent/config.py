@@ -48,7 +48,31 @@ class Settings(BaseSettings):
     # --- Web app gate (optional) --------------------------------------------
     # If set, web demos require this password before showing anything. Leave unset
     # for local development; set it for anything you deploy publicly.
+    # (TripOS itself no longer uses this — superseded by passwordless accounts.)
     app_password: str | None = Field(default=None, description="Password for deployed web apps.")
+
+    # --- Accounts & auth (TripOS) --------------------------------------------
+    # The public base URL of the deployed app — used to build magic-link URLs and
+    # the Google OAuth redirect URI. MUST be the real https URL in production.
+    app_base_url: str = Field(
+        default="http://localhost:8000", description="Public base URL of the app."
+    )
+    # Session/auth cookies are marked Secure when true. MUST be true in production
+    # (https); leave false only for local http development.
+    cookie_secure: bool = Field(
+        default=False, description="Set Secure flag on auth cookies (true in prod)."
+    )
+    # Resend (https://resend.com) sends the magic-link sign-in emails.
+    resend_api_key: str | None = Field(default=None, description="Resend API key.")
+    resend_from: str | None = Field(
+        default=None, description='Sender, e.g. "TripOS <login@yourdomain.com>".'
+    )
+    # Google OAuth (optional): the "Continue with Google" button appears only when
+    # BOTH are set. Create at https://console.cloud.google.com/apis/credentials.
+    google_client_id: str | None = Field(default=None, description="Google OAuth client id.")
+    google_client_secret: str | None = Field(
+        default=None, description="Google OAuth client secret."
+    )
 
     # --- Media: fal.ai (optional) -------------------------------------------
     # Get a key at https://fal.ai/dashboard/keys. Needed for the media service.

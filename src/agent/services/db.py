@@ -20,6 +20,8 @@ Example:
         print(row["body"])
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -57,11 +59,35 @@ async def fetchrow(query: str, *args: Any) -> asyncpg.Record | None:
         return await conn.fetchrow(query, *args)
 
 
+async def fetchval(query: str, *args: Any) -> Any:
+    """Run a query and return the first column of the first row (or None)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetchval(query, *args)
+
+
 async def execute(query: str, *args: Any) -> str:
     """Run a statement that returns no rows (INSERT/UPDATE/CREATE/...)."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         return await conn.execute(query, *args)
+
+
+@asynccontextmanager
+async def transaction() -> AsyncIterator[Any]:  # yields a pooled asyncpg connection
+    """One connection, one transaction — for multi-statement work that must be atomic.
+
+    Use when several statements have to succeed or fail together (e.g. create a user AND
+    claim their data in one breath). Everything inside commits on clean exit and rolls
+    back on any exception.
+
+        async with db.transaction() as conn:
+            await conn.execute("INSERT ...", ...)
+            await conn.execute("UPDATE ...", ...)
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn, conn.transaction():
+        yield conn
 
 
 async def close_pool() -> None:
