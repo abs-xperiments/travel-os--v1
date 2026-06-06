@@ -1,0 +1,156 @@
+<!-- Splash: the beginning of a journey, not a loading screen. A vintage steam train crosses
+     a minimal track; its steam rises white, takes on the brand colors, carries destination
+     names, and "paints" the monochrome TripOS wordmark to full color. Full sequence (~3.2s)
+     on the FIRST visit only; afterwards a 0.8s quick sweep (also for prefers-reduced-motion).
+     Silent by design. Tap anywhere to skip. -->
+<div id="splash" class="fixed inset-0 z-50 overflow-hidden bg-slate-950"
+     style="transition: opacity .45s ease;">
+  <!-- Wordmark: two stacked copies — monochrome fades out as the gradient fades in,
+       so the steam appears to paint the letters. -->
+  <div class="absolute left-1/2 top-[28%] -translate-x-1/2 text-center select-none">
+    <div class="relative">
+      <div id="splash-logo-mono" class="text-5xl font-extrabold tracking-tight text-slate-600"
+           style="transition: opacity 1.2s ease;">TripOS</div>
+      <div id="splash-logo-color"
+           class="absolute inset-0 text-5xl font-extrabold tracking-tight opacity-0"
+           style="background: linear-gradient(90deg,#38bdf8,#34d399,#a78bfa,#fb923c);
+                  -webkit-background-clip: text; background-clip: text; color: transparent;
+                  transition: opacity 1.2s ease;">TripOS</div>
+    </div>
+    <div class="mt-2 text-sm tracking-wide text-slate-500">Your AI Travel Partner</div>
+  </div>
+
+  <!-- Steam + destination names spawn into this layer (between logo and track). -->
+  <div id="splash-steam" class="absolute inset-0"></div>
+
+  <!-- Minimal railway near the bottom: rail line + sleepers. -->
+  <div id="splash-track" class="absolute inset-x-0 bottom-[12%]" style="transition: opacity .6s;">
+    <div class="h-px w-full bg-slate-700"></div>
+    <div class="h-1.5 w-full"
+         style="background: repeating-linear-gradient(90deg, transparent 0 22px,
+                #334155 22px 26px);"></div>
+  </div>
+
+  <!-- The locomotive (simple elegant silhouette, facing right). JS animates its X. -->
+  <svg id="splash-train" viewBox="0 0 200 90" fill="#94a3b8" aria-hidden="true"
+       class="absolute bottom-[12.5%] h-16 w-auto" style="left:-180px; will-change:transform;">
+    <rect x="10" y="38" width="110" height="26" rx="6"/>                 <!-- boiler -->
+    <rect x="120" y="20" width="46" height="44" rx="4"/>                 <!-- cab -->
+    <rect x="126" y="27" width="16" height="14" rx="2" fill="#0f172a"/>  <!-- cab window -->
+    <rect x="30" y="22" width="14" height="18" rx="3"/>                  <!-- chimney -->
+    <circle cx="72" cy="32" r="7"/>                                      <!-- steam dome -->
+    <rect x="6" y="60" width="170" height="8" rx="3"/>                   <!-- chassis -->
+    <path d="M6 60 L-12 76 L6 76 Z"/>                                    <!-- cowcatcher -->
+    <circle cx="40" cy="76" r="10"/><circle cx="80" cy="76" r="10"/>     <!-- drive wheels -->
+    <circle cx="128" cy="78" r="8"/><circle cx="156" cy="78" r="8"/>     <!-- cab wheels -->
+    <circle cx="40" cy="76" r="4" fill="#0f172a"/><circle cx="80" cy="76" r="4" fill="#0f172a"/>
+  </svg>
+</div>
+
+<style>
+  @keyframes splash-puff {
+    0%   { transform: translate(0, 0) scale(.5); opacity: 0; }
+    12%  { opacity: .85; }
+    100% { transform: translate(var(--drift), -46vh) scale(2.4); opacity: 0; }
+  }
+  @keyframes splash-name {
+    0%   { transform: translateY(0); opacity: 0; }
+    25%  { opacity: .9; }
+    100% { transform: translateY(-30vh); opacity: 0; }
+  }
+</style>
+
+<script>
+(function () {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  const steamLayer = document.getElementById('splash-steam');
+  const train = document.getElementById('splash-train');
+  const mono = document.getElementById('splash-logo-mono');
+  const color = document.getElementById('splash-logo-color');
+  const track = document.getElementById('splash-track');
+
+  const BRAND = ['#e2e8f0', '#38bdf8', '#34d399', '#a78bfa', '#fb923c']; // white -> brand hues
+  const PLACES = ['Kyoto', 'Tokyo', 'Bali', 'Paris', 'Santorini', 'Reykjavik', 'Queenstown',
+                  'Swiss Alps', 'Munnar', 'Varkala', 'Ladakh', 'Ooty'];
+
+  const seen = localStorage.getItem('tripos_intro');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const quick = !!seen || reduced;
+  const DURATION = quick ? 800 : 3200;   // quick sweep vs the full journey
+  const timers = [];
+  let placeIdx = 0;
+
+  function colorize() {                   // the steam "paints" the logo
+    mono.style.opacity = '0';
+    color.style.opacity = '1';
+  }
+
+  function spawnPuff(x, y, idx) {
+    const p = document.createElement('div');
+    const size = 14 + Math.random() * 22;
+    // Early puffs stay white/gray; as the sequence progresses they take the brand colors.
+    const hue = idx < 6 ? BRAND[0] : BRAND[1 + Math.floor(Math.random() * 4)];
+    p.style.cssText = 'position:absolute;border-radius:9999px;filter:blur(6px);'
+      + `left:${x}px;top:${y}px;width:${size}px;height:${size}px;background:${hue};`
+      + `--drift:${(Math.random() * 80 - 30).toFixed(0)}px;`
+      + `animation: splash-puff ${1.4 + Math.random() * .8}s ease-out forwards;`;
+    steamLayer.appendChild(p);
+    timers.push(setTimeout(() => p.remove(), 2400));
+    // Every few puffs, a destination name rises with the steam.
+    if (idx > 4 && idx % 5 === 0 && placeIdx < PLACES.length) {
+      const n = document.createElement('div');
+      n.textContent = PLACES[placeIdx++];
+      n.style.cssText = 'position:absolute;font-size:13px;letter-spacing:.08em;'
+        + `left:${x + 18}px;top:${y - 10}px;color:${BRAND[1 + (placeIdx % 4)]};opacity:0;`
+        + 'animation: splash-name 2.1s ease-out forwards;';
+      steamLayer.appendChild(n);
+      timers.push(setTimeout(() => n.remove(), 2200));
+    }
+  }
+
+  function finish() {
+    timers.forEach(clearTimeout);
+    localStorage.setItem('tripos_intro', '1');
+    splash.style.opacity = '0';
+    setTimeout(() => splash.remove(), 480);   // smooth fade, no hard cut
+  }
+
+  splash.addEventListener('click', finish);   // never hold a modern user hostage
+
+  if (quick) {                                // returning visitor: brief reveal + quick sweep
+    colorize();
+    train.style.transition = `transform ${DURATION}ms ease-in-out`;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        train.style.transform = `translateX(${window.innerWidth + 360}px)`;
+      })
+    );
+    timers.push(setTimeout(finish, DURATION));
+    return;
+  }
+
+  // Full journey: train crosses (2.6s), steam rises and colors, logo gets painted (~1.3s in),
+  // then everything dissipates and the app fades in. Total ≈ 3.2s — never longer than 4.
+  const travelMs = 2600;
+  train.style.transition = `transform ${travelMs}ms cubic-bezier(.45,.05,.55,.95)`;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      train.style.transform = `translateX(${window.innerWidth + 360}px)`;
+    })
+  );
+
+  let puffIdx = 0;
+  const puffer = setInterval(() => {
+    const rect = train.getBoundingClientRect();
+    if (rect.left < window.innerWidth) {
+      spawnPuff(rect.left + 34, rect.top + 4, puffIdx++);  // from the chimney
+    }
+  }, 90);
+  timers.push(setTimeout(() => clearInterval(puffer), travelMs));
+
+  timers.push(setTimeout(colorize, 1300));                     // steam reaches the letters
+  timers.push(setTimeout(() => { track.style.opacity = '0'; }, travelMs));
+  timers.push(setTimeout(finish, DURATION));
+})();
+</script>
