@@ -651,3 +651,18 @@ OFFLINE TEST CAUGHT A REAL BUG before it shipped: the veg-preference filter matc
 substring of "non-veg" — a steakhouse ranked as vegetarian-friendly. Same trap family as the
 "no forts"/"Amber Fort" plural bug, inverted. Fixed by stripping negations before matching
 (_veg_friendly). The test-first habit on pure ranking helpers paid for itself immediately.
+
+## 2026-06-06 11:30 — V2 Layer-3 live validation PASSED (all 7 scenarios)
+Ran the release gate via scripts/validate_v2.py (drives stream_reply — the exact web pipeline).
+Intent scenarios: Didupe homestays (ranked pick+3 alts, prices/why/tradeoffs, honest about the
+small village, ZERO itinerary questions); Kochi seafood (occasion handled with judgment — a
+"best food" pick vs a "most romantic" pick; showed 2 strong options rather than padding);
+December discovery (4-5 ideas, best-budget-fit first, tradeoffs, offer-to-plan); "leaving
+today for Kerala" (resolved to June automatically — never asked WHEN; one consolidated
+bullet round for group/budget/interests). Regression sweep UNCHANGED: Dubai-July advisory-only
+then indoor-leaning plan on "continue with July" (ranges, confidence-with-reason, ✅ verdict);
+non-touristy Paris leads hidden gems with Eiffel as one dusk photo stop (the designed soft
+bias) + full budget contract; Goa luxury ₹30k → conflict advisory with levers, no silent
+downgrade. Verdict: the intent-first restructure changed non-planning conversations without
+regressing the planning ones — the nesting-not-rewording approach to the advisory text worked.
+Kept scripts/validate_v2.py as the reusable Layer-3 driver.
