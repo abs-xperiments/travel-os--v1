@@ -15,9 +15,12 @@ Design notes that matter (docs/failure_modes.md "Accounts"):
 
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlencode
 
+import httpx
 from fastapi import APIRouter, Form, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -138,6 +141,100 @@ async def welcome_save(request: Request, name: Annotated[str, Form()]) -> Respon
     if cleaned:
         await accounts.update_profile(user.id, name=cleaned)
     return RedirectResponse("/", status_code=303)
+
+
+# --------------------------------------------------------------- Google OAuth
+# Manual flow over httpx (no new dependencies). Profile comes from Google's userinfo
+# endpoint — a server-to-server TLS call — so we never decode an id_token without
+# signature verification. The button only renders when both credentials are configured.
+
+_STATE_COOKIE = "tripos_oauth_state"
+_GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN = "https://oauth2.googleapis.com/token"
+_GOOGLE_USERINFO = "https://openidconnect.googleapis.com/v1/userinfo"
+
+
+def _google_redirect_uri() -> str:
+    return f"{get_settings().app_base_url.rstrip('/')}/auth/google/callback"
+
+
+@router.get("/auth/google")
+async def google_start(request: Request) -> Response:
+    settings = get_settings()
+    if not (settings.google_client_id and settings.google_client_secret):
+        return RedirectResponse("/login", status_code=303)
+    state = secrets.token_urlsafe(32)  # CSRF guard for the round-trip
+    params = urlencode(
+        {
+            "client_id": settings.google_client_id,
+            "redirect_uri": _google_redirect_uri(),
+            "response_type": "code",
+            "scope": "openid email profile",
+            "state": state,
+        }
+    )
+    response = RedirectResponse(f"{_GOOGLE_AUTH}?{params}", status_code=303)
+    response.set_cookie(
+        _STATE_COOKIE,
+        state,
+        httponly=True,
+        samesite="lax",
+        secure=settings.cookie_secure,
+        max_age=600,
+        path="/",
+    )
+    return response
+
+
+@router.get("/auth/google/callback")
+async def google_callback(request: Request, code: str = "", state: str = "") -> Response:
+    settings = get_settings()
+    expected = request.cookies.get(_STATE_COOKIE, "")
+    if not code or not state or not secrets.compare_digest(state, expected):
+        logger.warning("google oauth: state mismatch or missing code")
+        return RedirectResponse("/login", status_code=303)
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            token_res = await client.post(
+                _GOOGLE_TOKEN,
+                data={
+                    "code": code,
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret,
+                    "redirect_uri": _google_redirect_uri(),  # must match the start byte-for-byte
+                    "grant_type": "authorization_code",
+                },
+            )
+            token_res.raise_for_status()
+            access_token = token_res.json().get("access_token", "")
+            info_res = await client.get(
+                _GOOGLE_USERINFO, headers={"Authorization": f"Bearer {access_token}"}
+            )
+            info_res.raise_for_status()
+            info = info_res.json()
+    except Exception:
+        logger.exception("google oauth exchange failed")
+        return RedirectResponse("/login", status_code=303)
+
+    email_addr = (info.get("email") or "").strip().lower()
+    # The merge-safety guard: only a Google-VERIFIED email may find-or-create (merge into)
+    # the account for that address — an unverified one could hijack someone's account.
+    if not email_addr or info.get("email_verified") is not True:
+        logger.warning("google oauth: refused unverified email")
+        return RedirectResponse("/login", status_code=303)
+
+    user, created = await accounts.find_or_create_user(
+        email_addr,
+        provider="google",
+        name=info.get("name"),
+        avatar_url=info.get("picture"),
+    )
+    destination = "/welcome" if created and not user.name else "/"
+    response = RedirectResponse(destination, status_code=303)
+    response.delete_cookie(_STATE_COOKIE, path="/")
+    await _sign_in(response, user.id)
+    return response
 
 
 @router.post("/auth/logout")
