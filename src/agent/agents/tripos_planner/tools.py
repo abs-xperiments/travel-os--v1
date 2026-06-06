@@ -30,7 +30,21 @@ from agent.tripos.models import (
 )
 from agent.tripos.provider_interfaces import slugify
 
+from . import progress
 from .compact import _compact_circuit, _compact_plan, _neutral_brief, _parse_date
+
+# Checklist labels for the two halves of resolve_and_enrich (see _enrich_progress).
+_PART_LABELS = {
+    "destination": "Destination intelligence",
+    "enrichment": "Stays, food & weather",
+}
+
+
+def _enrich_progress(part: str) -> None:
+    """resolve_and_enrich's on_progress hook — ticks the matching checklist line."""
+    label = _PART_LABELS.get(part)
+    if label:
+        progress.finish(label)
 
 
 def list_destinations() -> list[dict]:
@@ -176,8 +190,13 @@ async def build_trip(
         return {"error": f"Invalid input: {exc}"}
 
     # Resolve the destination AND fetch its stays/restaurants/weather CONCURRENTLY (≈2x faster
-    # for an uncached place; identical results). Enrichment is best-effort.
-    resolved, enrichment = await trip_intelligence.resolve_and_enrich(destination, brief)
+    # for an uncached place; identical results). Enrichment is best-effort. The two checklist
+    # lines tick live (via _enrich_progress) as each half completes.
+    progress.begin(_PART_LABELS["destination"])
+    progress.begin(_PART_LABELS["enrichment"])
+    resolved, enrichment = await trip_intelligence.resolve_and_enrich(
+        destination, brief, on_progress=_enrich_progress
+    )
     if resolved is None:
         return {
             "error": f"I couldn't find a place called {destination!r}. "
@@ -186,12 +205,14 @@ async def build_trip(
 
     # The budget CONSTRAINS the plan: pick the stay tier it affords (fit-first; luxury is
     # never silently downgraded), and adapt to the travel month's season assessment (if any).
+    progress.step("Choosing stays that fit your budget")
     choice = trip_planner.choose_stay(enrichment.stays, brief)
     season = (
         enrichment.seasonality.for_month(brief.travel_month)
         if enrichment.seasonality and brief.travel_month
         else None
     )
+    progress.step("Selecting stops, days & budget")
     plan = trip_planner.plan_trip(
         brief,
         resolved,
@@ -209,6 +230,7 @@ async def build_trip(
     out = _compact_plan(plan, resolved, enrichment.seasonality)
     out["recommended_stay_tier"] = choice.tier  # lead the stays section with this tier
     out["style_conflict"] = choice.style_conflict  # luxury asked but doesn't fit -> ASK
+    progress.complete()
     return out
 
 
@@ -335,10 +357,21 @@ async def build_circuit(
         return {"error": f"Invalid input: {exc}"}
 
     legs = list(zip(destinations, nights, strict=False))
-    plan = await circuit_planner.plan_circuit(name or "Your circuit", legs, brief)
+    # One checklist line per leg — each ticks live as its (concurrent) planning completes.
+    for dest in destinations:
+        progress.begin(f"Planning {dest}")
+    plan = await circuit_planner.plan_circuit(
+        name or "Your circuit",
+        legs,
+        brief,
+        on_leg_done=lambda dest: progress.finish(f"Planning {dest}"),
+    )
     if plan is None:
         return {
             "error": "I couldn't build that route. Could you pick well-known towns, "
             "or name a single destination instead?"
         }
-    return _compact_circuit(plan)
+    progress.step("Stitching the legs into one trip")
+    out = _compact_circuit(plan)
+    progress.complete()
+    return out

@@ -25,6 +25,7 @@ from agent.tripos.models import (
 from agent.tripos.provider_interfaces import slugify
 from agent.tripos.providers import web_intelligence
 
+from . import progress
 from .tools import rank_circuits_by_budget
 
 
@@ -165,6 +166,7 @@ async def find_stays(
         group_type=group,
         interests=[TravelStyle.sightseeing],
     )
+    progress.step(f"Scanning stays in {destination}")
     enrichment = await trip_intelligence.enrich_by_name(destination, brief)
     stays = enrichment.stays
 
@@ -172,13 +174,17 @@ async def find_stays(
     # specific ask ("homestays" in a tiny village). One focused retrieval, cached under its own
     # key so it never overwrites the canonical enrichment the trip builder relies on.
     if not stays or (kind and len([s for s in stays if _matches_kind(s, kind)]) < 2):
+        # The extra wait gets an honest reason on the checklist.
+        progress.step(f"Digging deeper for {kind or 'stay'} options")
         focus = f"the best {kind or 'places to stay'} options across price ranges"
         key = f"{slugify(destination)}:stays:{_normalize(kind) if kind else 'any'}:v1"
         focused = await web_intelligence.gather_focused(destination, focus, key)
         seen = {s.name.casefold() for s in focused.stays}
         stays = focused.stays + [s for s in stays if s.name.casefold() not in seen]
 
+    progress.step("Ranking what fits your ask")
     ranked, note = _rank_stays(stays, ceiling, kind, area)
+    progress.complete()
     if not ranked:
         return {
             "error": f"I couldn't find stays I can vouch for in {destination!r}. "
@@ -304,6 +310,7 @@ async def find_restaurants(
         interests=[TravelStyle.food],
         food_pref=pref,
     )
+    progress.step(f"Scanning places to eat in {destination}")
     enrichment = await trip_intelligence.enrich_by_name(destination, brief)
     restaurants = enrichment.restaurants
 
@@ -311,6 +318,7 @@ async def find_restaurants(
     if not restaurants or (
         cuisine and len([r for r in restaurants if _matches_text(r, cuisine)]) < 2
     ):
+        progress.step(f"Digging deeper for {cuisine or 'food'} spots")
         focus = f"the best {cuisine or 'restaurants and local food'} places to eat"
         key = f"{slugify(destination)}:food:{_normalize(cuisine) if cuisine else 'any'}:v1"
         focused = await web_intelligence.gather_focused(destination, focus, key)
@@ -319,7 +327,9 @@ async def find_restaurants(
             r for r in restaurants if r.name.casefold() not in seen
         ]
 
+    progress.step("Ranking what fits your ask")
     ranked, note = _rank_restaurants(restaurants, cuisine, pref, occasion, area, price_band)
+    progress.complete()
     if not ranked:
         return {
             "error": f"I couldn't find restaurants I can vouch for in {destination!r}. "

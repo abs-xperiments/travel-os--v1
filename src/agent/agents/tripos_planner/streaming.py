@@ -1,11 +1,17 @@
-"""Streaming the planner's reply to the web UI, with progress statuses and the dead-end guard.
+"""Streaming the planner's reply to the web UI, with live progress and the dead-end guard.
 
 `stream_reply` is what `tripos_web.py` consumes: a stream of deltas (text chunks), transient
 status notes while tools run, and a final `done` carrying the serialized history to persist.
+
+Tool execution happens while we await the agent-run iterator's next node — so to show live
+progress DURING a long tool run, the loop races that await against the turn's progress queue
+(see `progress.py`) and yields each checklist update as a status piece the moment a stage
+completes. Honest progress only: the checklist is written by the tools as work actually happens.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import AsyncIterator
 
@@ -21,6 +27,7 @@ from pydantic_ai.messages import (
     ToolCallPartDelta,
 )
 
+from . import progress
 from .agent import planner_agent
 
 
@@ -36,20 +43,10 @@ class StreamPiece(BaseModel):
     messages_json: str = ""  # full serialized history (when kind == "done"), for persistence
 
 
-# Shown the moment build_trip starts, to fill the silent gap while retrieval/planning runs.
-_BUILD_STATUS = (
-    "Building your trip…\n"
-    "• Retrieving destination intelligence\n"
-    "• Selecting the best stops\n"
-    "• Optimising the route & days\n"
-    "• Estimating the budget"
-)
-
-# Shown while check_travel_season runs — saying "building" there would be untrue.
+# Single-line headers per tool — the live checklist (progress.py) provides the detail beneath.
+_BUILD_STATUS = "Building your trip…"
 _SEASON_STATUS = "Checking the season and weather for your dates…"
 
-# Per-tool statuses for the intent-scoped tools — a stays search saying "Building your trip…"
-# would be untrue (and confusing). Unknown tools fall back to the build status.
 _STATUS_BY_TOOL = {
     "check_travel_season": _SEASON_STATUS,
     "find_stays": "Finding the best places to stay…",
@@ -78,15 +75,15 @@ _FORCE_BUILD = (
 async def stream_reply(
     message: str, message_history: list[ModelMessage]
 ) -> AsyncIterator[StreamPiece]:
-    """Stream the planner's reply — preamble, a progress status while tools run, then the plan.
+    """Stream the planner's reply — preamble, live progress while tools run, then the plan.
 
     We use `agent.iter()` (not `run_stream()`): our agent calls `build_trip`, and `run_stream()`
     alone would only stream the first model turn, missing the plan written after the tool.
 
-    Dead-end guard (Issue 1): if a turn ends having only PROMISED to build (no build_trip call),
-    we automatically continue once with a forced nudge so the plan is produced in the same
+    Dead-end guard (Issue 1): if a turn ends having only PROMISED to build (no tool call),
+    we automatically continue once with a forced nudge so the result is produced in the same
     response — the user never has to send another message. EXCEPTION: if the turn asked the
-    traveler a question, we do NOT force a build (they're still answering) — that would plan
+    traveler a question, we do NOT force (they're still answering) — that would plan
     before the required info is in.
     """
     history = list(message_history)
@@ -97,33 +94,76 @@ async def stream_reply(
         last_status: str | None = None
         text_parts: list[str] = []
 
-        async with planner_agent.iter(prompt, message_history=history) as run:
-            async for node in run:
-                if not Agent.is_model_request_node(node):
-                    continue
-                async with node.stream(run.ctx) as model_stream:
-                    async for event in model_stream:
-                        part = getattr(event, "part", None)
-                        delta = getattr(event, "delta", None)
-                        if isinstance(event, PartStartEvent) and isinstance(part, TextPart):
-                            if part.content:
-                                text_parts.append(part.content)
-                                yield StreamPiece(kind="delta", text=part.content)
-                        elif isinstance(event, PartDeltaEvent) and isinstance(delta, TextPartDelta):
-                            text_parts.append(delta.content_delta)
-                            yield StreamPiece(kind="delta", text=delta.content_delta)
-                        elif isinstance(part, ToolCallPart) or isinstance(delta, ToolCallPartDelta):
-                            tool_called = True
-                            # Issue 2: show progress while a tool runs. The UI replaces the
-                            # status line on each event, so we re-emit when it CHANGES — e.g.
-                            # a season check followed by the build in the same turn.
-                            if isinstance(part, ToolCallPart):
-                                status = _STATUS_BY_TOOL.get(part.tool_name, _BUILD_STATUS)
+        # The turn's progress channel: tools report stages (via progress.py helpers, inherited
+        # through the task context), and the loop below relays them while the node runs.
+        queue: asyncio.Queue[str] = asyncio.Queue()
+        reporter, token = progress.activate(queue)
+
+        try:
+            async with planner_agent.iter(prompt, message_history=history) as run:
+                run_iter = run.__aiter__()
+                while True:
+                    # Advancing the iterator is where tool execution happens and blocks — race
+                    # it against the progress queue so checklist updates stream live.
+                    node_task = asyncio.ensure_future(anext(run_iter))
+                    try:
+                        while not node_task.done():
+                            get_task = asyncio.ensure_future(queue.get())
+                            await asyncio.wait(
+                                {node_task, get_task}, return_when=asyncio.FIRST_COMPLETED
+                            )
+                            if get_task.done() and not get_task.cancelled():
+                                status = get_task.result()
+                                if status != last_status:
+                                    last_status = status
+                                    yield StreamPiece(kind="status", text=status)
                             else:
-                                status = last_status or _BUILD_STATUS
-                            if status != last_status:
-                                last_status = status
-                                yield StreamPiece(kind="status", text=status)
+                                get_task.cancel()
+                    except BaseException:
+                        node_task.cancel()  # never leave the run advancing unobserved
+                        raise
+                    try:
+                        node = node_task.result()
+                    except StopAsyncIteration:
+                        break
+                    # Relay any stages that landed in the same instant the node completed.
+                    while not queue.empty():
+                        status = queue.get_nowait()
+                        if status != last_status:
+                            last_status = status
+                            yield StreamPiece(kind="status", text=status)
+
+                    if not Agent.is_model_request_node(node):
+                        continue
+                    async with node.stream(run.ctx) as model_stream:
+                        async for event in model_stream:
+                            part = getattr(event, "part", None)
+                            delta = getattr(event, "delta", None)
+                            if isinstance(event, PartStartEvent) and isinstance(part, TextPart):
+                                if part.content:
+                                    text_parts.append(part.content)
+                                    yield StreamPiece(kind="delta", text=part.content)
+                            elif isinstance(event, PartDeltaEvent) and isinstance(
+                                delta, TextPartDelta
+                            ):
+                                text_parts.append(delta.content_delta)
+                                yield StreamPiece(kind="delta", text=delta.content_delta)
+                            elif isinstance(part, ToolCallPart) or isinstance(
+                                delta, ToolCallPartDelta
+                            ):
+                                tool_called = True
+                                # The header line for the tool about to run; the checklist the
+                                # tool writes will then grow beneath it (reporter.title).
+                                if isinstance(part, ToolCallPart):
+                                    status = _STATUS_BY_TOOL.get(part.tool_name, _BUILD_STATUS)
+                                    reporter.title = status
+                                else:
+                                    status = last_status or _BUILD_STATUS
+                                if status != last_status:
+                                    last_status = status
+                                    yield StreamPiece(kind="status", text=status)
+        finally:
+            progress.deactivate(token)
 
         result = run.result
 

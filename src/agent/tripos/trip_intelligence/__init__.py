@@ -12,6 +12,7 @@ See README.md in this folder for a plain-English explanation and debugging guide
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 
 from loguru import logger
 
@@ -88,7 +89,9 @@ def _stub_for(query: str) -> Destination:
 
 
 async def resolve_and_enrich(
-    query: str, brief: TripBrief
+    query: str,
+    brief: TripBrief,
+    on_progress: Callable[[str], None] | None = None,
 ) -> tuple[Destination | None, TripEnrichment]:
     """Resolve a destination AND fetch its enrichment CONCURRENTLY.
 
@@ -96,9 +99,22 @@ async def resolve_and_enrich(
     can run in parallel with resolve() instead of waiting for it — roughly halving the wait for
     an uncached destination, with identical results. (For a misspelled place, resolve returns
     None and the parallel enrichment is simply discarded.)
+
+    on_progress, when given, is called with "destination" / "enrichment" as each half
+    COMPLETES (resolve only on success) — so callers can show honest live progress.
     """
-    resolved, enrichment = await asyncio.gather(
-        destination_intelligence.resolve(query, brief),
-        enrich(_stub_for(query), brief),
-    )
+
+    async def _resolved() -> Destination | None:
+        out = await destination_intelligence.resolve(query, brief)
+        if on_progress is not None and out is not None:
+            on_progress("destination")
+        return out
+
+    async def _enriched() -> TripEnrichment:
+        out = await enrich(_stub_for(query), brief)
+        if on_progress is not None:
+            on_progress("enrichment")
+        return out
+
+    resolved, enrichment = await asyncio.gather(_resolved(), _enriched())
     return resolved, enrichment

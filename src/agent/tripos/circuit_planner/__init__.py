@@ -14,6 +14,7 @@ streaming progress note. See README.md for a plain-English explanation.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 
 from agent.tripos import trip_intelligence, trip_planner
 from agent.tripos.models import (
@@ -56,12 +57,26 @@ async def _build_leg(dest_name: str, nights: int, brief: TripBrief) -> _LegResul
 
 
 async def plan_circuit(
-    name: str, legs: list[tuple[str, int]], brief: TripBrief
+    name: str,
+    legs: list[tuple[str, int]],
+    brief: TripBrief,
+    on_leg_done: Callable[[str], None] | None = None,
 ) -> CircuitPlan | None:
-    """Build a CircuitPlan from (destination, nights) legs. Returns None if no leg resolves."""
+    """Build a CircuitPlan from (destination, nights) legs. Returns None if no leg resolves.
+
+    on_leg_done, when given, is called with the leg's destination name as each concurrently-
+    planned leg COMPLETES — so callers can show honest live progress per leg.
+    """
     # Plan every leg CONCURRENTLY, then stitch the results back in travel order.
     chosen = legs[:MAX_LEGS]
-    results = await asyncio.gather(*(_build_leg(dest, nights, brief) for dest, nights in chosen))
+
+    async def _leg(dest: str, nights: int) -> _LegResult | None:
+        result = await _build_leg(dest, nights, brief)
+        if on_leg_done is not None:
+            on_leg_done(dest)
+        return result
+
+    results = await asyncio.gather(*(_leg(dest, nights) for dest, nights in chosen))
 
     stops: list[CircuitStop] = []
     day = 0
