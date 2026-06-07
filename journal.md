@@ -861,3 +861,18 @@ gate message, passwordless /login live, manifest/sw/icon all 200, and a REAL mag
 request through prod returned "Check your email" — Resend fired from Railway. Remaining:
 the founder's first sign-in (claims legacy trips), browser checks (splash, PWA install,
 avatar menu), main fast-forward.
+
+## 2026-06-07 22:00 — Accounts VERIFIED IN PRODUCTION; founder claim happened in the wild
+Resend rotation completed properly: old leaked key confirmed DEAD against Resend's API; the
+401s traced to a miscopied paste in the Railway dashboard (Resend shows a key in full only
+once, at creation — later copies are masked); fixed by pushing .env's good key through the
+masked subprocess pipeline; prod send verified 200 with zero log failures. Google OAuth
+verified live: button renders, the authorize redirect carries the exact registered
+redirect_uri, state cookie is HttpOnly+Lax+Secure (COOKIE_SECURE=true proven in headers).
+THE FOUNDER CLAIM FIRED IN THE WILD before the planned ceremony: the user tested "Continue
+with Google" — first account (their student Gmail, 16:33) claimed all 91 legacy trips;
+their second Google account (16:51) correctly claimed ZERO. The exactly-once transaction
+worked unsupervised in production. User confirmed both accounts are theirs; history stays
+on the student account. Full prod E2E with a disposable third account (safe post-claim):
+scanner double-GET never consumed, confirm POST -> Secure 90-day session, persistence across
+requests, foreign-trip 404, logout, cleanup back to 2 real users. Accounts cutover DONE.
