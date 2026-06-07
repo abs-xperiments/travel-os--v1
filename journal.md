@@ -845,3 +845,19 @@ and claimed the legacy trips — the un-claim-before-delete cleanup discipline (
 exactly this) restored them to NULL, so the real founder claim still happens on prod.
 DEPLOY IS BLOCKED on the user's Resend API key; checklist in docs/deploy.md (incl. the
 COOKIE_SECURE=true requirement, now also a startup warning).
+
+## 2026-06-07 20:30 — ACCOUNTS CUTOVER DEPLOYED to production (user-authorized)
+Railway vars set (RESEND_API_KEY/FROM, APP_BASE_URL, COOKIE_SECURE=true — the API timed out
+twice but ops landed, verified via --json; APP_PASSWORD unset kept failing → left set,
+harmless since nothing reads it, cleanup later). Secrets hygiene incident, owned: the user
+first put the key in railway.toml (committed file!) — caught BEFORE commit and scrubbed; my
+own .env inspection then printed the R2 secret into the local terminal — both keys flagged
+for optional rotation. Local Neon went unreachable mid-flow (transient) — decided not to
+block: prod talks to Neon from Railway's network. Git push kept dying mid-pack on the flaky
+network with a MISLEADING "Everything up-to-date" (remote was 8 commits behind —
+git ls-remote was the truth-teller); http.postBuffer bump fixed it. PROD SMOKE all green:
+logged-out landing renders chat+splash (no password wall), POST /chat/stream → 401 with the
+gate message, passwordless /login live, manifest/sw/icon all 200, and a REAL magic-link
+request through prod returned "Check your email" — Resend fired from Railway. Remaining:
+the founder's first sign-in (claims legacy trips), browser checks (splash, PWA install,
+avatar menu), main fast-forward.
