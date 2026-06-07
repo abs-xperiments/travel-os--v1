@@ -876,3 +876,13 @@ worked unsupervised in production. User confirmed both accounts are theirs; hist
 on the student account. Full prod E2E with a disposable third account (safe post-claim):
 scanner double-GET never consumed, confirm POST -> Secure 90-day session, persistence across
 requests, foreign-trip 404, logout, cleanup back to 2 real users. Accounts cutover DONE.
+
+## 2026-06-07 22:30 — R2 rotation synced to prod (user rotated mid-session; I missed it)
+The user rotated the R2 credentials themselves mid-session — credit to them; I didn't notice
+because I'd only been diffing the RESEND key. Caught on their prompt: local .env had the new
+working creds (verified by a real store→list→delete round-trip), Railway still held the stale
+set — avatar uploads in prod would have broken the moment the old Cloudflare token was
+revoked. All R2 vars pushed to Railway via the masked pipeline, redeployed, prod up.
+LESSON: a secret rotation isn't finished until every environment that holds the secret is
+updated — when one credential changes, diff .env against Railway for the WHOLE family
+(key id + secret + account + bucket), not just the value that prompted the rotation.
