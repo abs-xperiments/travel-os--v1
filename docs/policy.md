@@ -207,9 +207,9 @@ personalized, the feature is not complete — whatever the test coverage says.
 Authentication is plumbing, never the experience: it exists only to save trips, restore
 conversations, and protect user data. The chatbot is the landing page; logged-out visitors see
 and explore it freely, and only SENDING requires sign-in ("Sign in to start planning and save
-your trips"). Passwordless only — Google or an emailed sign-in link; Login and Sign Up are the
-same mechanism (the system decides new-vs-existing after authentication; one account per
-email, always). Sessions persist ~90 days rolling — sign in once, stay signed in. Every trip
+your trips"). Passwordless and Google-only (email codes built then removed, 2026-06-08 — Google covers
+the audience); Login and Sign Up are the same mechanism (the system decides new-vs-existing
+after authentication; one account per email, always). Sessions persist ~90 days rolling — sign in once, stay signed in. Every trip
 belongs to exactly one user; nobody can ever see another user's trips (enforced in the data
 layer, not just routes).
 

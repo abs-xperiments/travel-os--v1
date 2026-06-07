@@ -1,7 +1,7 @@
 # accounts
 
-**What it does, in one line:** passwordless user accounts — who you are, your session, and
-the single-use links that sign you in.
+**What it does, in one line:** passwordless user accounts — who you are and your session
+(Google is the only sign-in method since 2026-06-08).
 
 ## Why it exists
 
@@ -13,11 +13,7 @@ happened.
 
 ## How it works, step by step
 
-1. **Sign-in link:** `create_login_token(email)` mints a random token; the email link carries
-   the raw token, the database keeps only its sha256. The link's GET page never spends the
-   token (mail scanners prefetch links!) — `peek_login_token` just checks it. The confirm
-   button's POST calls `consume_login_token`, an atomic single-winner UPDATE.
-2. **Find-or-create:** `find_or_create_user(email, provider, …)` — one row per lowercased
+1. **Find-or-create:** `find_or_create_user(email, provider, …)` — one row per lowercased
    email. Existing user → stamp last_login, fill empty name/avatar. New user → create; and if
    it's the FIRST account ever, claim every legacy (pre-accounts) trip in the same
    transaction.

@@ -1,18 +1,18 @@
-"""accounts — passwordless users, sessions, and single-use sign-in tokens.
+"""accounts — passwordless users and sessions (Google-only sign-in since 2026-06-08).
 
-The auth model in one paragraph: a user proves control of an inbox (magic link) or a
-Google account; we find-or-create ONE user per lowercased email (signup and login are the
-same operation — the system decides which happened). A successful auth mints a server-side
-session whose raw token lives only in the browser cookie; the database stores sha256
-hashes of every secret, so a database read can never be replayed as a credential.
+The auth model in one paragraph: a user proves their identity with Google (the web layer
+verifies it server-to-server); we find-or-create ONE user per lowercased email (signup and
+login are the same operation — the system decides which happened). A successful auth mints
+a server-side session whose raw token lives only in the browser cookie; the database
+stores sha256 hashes, so a database read can never be replayed as a credential.
 
 Security decisions baked in (see docs/failure_modes.md "Accounts"):
-- Sign-in tokens are SINGLE-USE, consumed by an atomic conditional UPDATE — a double
-  click (or a mail scanner racing the human) yields exactly one winner.
 - Sessions roll: ~90 days from last activity, with the touch throttled to once a day.
 - The FIRST user ever created claims all legacy (pre-accounts) trips, inside the same
   transaction that creates the user — race-free and exactly-once.
-- Rate limiting is enforced in the DB (per-email and per-IP hourly caps).
+
+(Email verification codes were built, shipped, then removed by user decision — migration
+007 dropped their tables; see journal 2026-06-08 for the story and its lessons.)
 
 See README.md in this folder for a plain-English explanation.
 """
@@ -31,13 +31,8 @@ from agent.services import db
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
-LOGIN_CODE_TTL_MINUTES = 10
-MAX_CODE_ATTEMPTS = 5
-RESEND_COOLDOWN_SECONDS = 40
 SESSION_TTL_DAYS = 90
 SESSION_TOUCH_INTERVAL = "1 day"  # roll the expiry at most this often (write throttling)
-MAX_SENDS_PER_EMAIL_PER_HOUR = 5
-MAX_SENDS_PER_IP_PER_HOUR = 20
 
 
 class User(BaseModel):
@@ -196,114 +191,3 @@ async def delete_session(raw_token: str) -> None:
 async def delete_all_sessions(user_id: str) -> None:
     """Log out everywhere."""
     await db.execute("DELETE FROM tripos_sessions WHERE user_id = $1", user_id)
-
-
-# ----------------------------------------------------------- verification codes
-
-
-def _code_hash(email: str, code: str) -> str:
-    """Codes are bound to the address they were sent to — a code for one inbox can never
-    verify another."""
-    return _hash(f"{_normalize_email(email)}:{code}")
-
-
-async def create_login_code(email: str) -> str:
-    """Mint a fresh 6-digit code for this email; returns the RAW code (for the email body).
-
-    Requesting a new code INVALIDATES every previous unused code for the address — only
-    the latest email is ever valid (the spec's resend behavior).
-    """
-    email = _normalize_email(email)
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    await db.execute(
-        "UPDATE tripos_login_codes SET used_at = now() WHERE email = $1 AND used_at IS NULL",
-        email,
-    )
-    await db.execute(
-        "INSERT INTO tripos_login_codes (email, code_hash, expires_at) "
-        f"VALUES ($1, $2, now() + interval '{LOGIN_CODE_TTL_MINUTES} minutes')",
-        email,
-        _code_hash(email, code),
-    )
-    return code
-
-
-async def seconds_until_resend(email: str) -> int:
-    """How long before this address may request another code (0 = now). Server-side
-    enforcement of the resend cooldown — the UI countdown alone is just decoration."""
-    created = await db.fetchval(
-        "SELECT created_at FROM tripos_login_codes "
-        "WHERE email = $1 ORDER BY created_at DESC LIMIT 1",
-        _normalize_email(email),
-    )
-    if created is None:
-        return 0
-    remaining = await db.fetchval(
-        f"SELECT GREATEST(0, CEIL(EXTRACT(EPOCH FROM "
-        f"($1::timestamptz + interval '{RESEND_COOLDOWN_SECONDS} seconds') - now())))::int",
-        created,
-    )
-    return int(remaining or 0)
-
-
-async def verify_login_code(email: str, code: str) -> str:
-    """Check a code against the LATEST one sent to this address.
-
-    Returns one of: "ok" (consumed — race-safe, exactly one winner), "invalid" (wrong
-    code; counts an attempt), "expired", "too_many" (attempt cap hit), "none" (no code
-    outstanding). Every state maps to a specific, honest message in the UI.
-    """
-    email = _normalize_email(email)
-    row = await db.fetchrow(
-        "SELECT id, code_hash, expires_at < now() AS expired, attempts "
-        "FROM tripos_login_codes WHERE email = $1 AND used_at IS NULL "
-        "ORDER BY created_at DESC LIMIT 1",
-        email,
-    )
-    if row is None:
-        return "none"
-    if row["expired"]:
-        return "expired"
-    if row["attempts"] >= MAX_CODE_ATTEMPTS:
-        return "too_many"
-    if _code_hash(email, code.strip()) != row["code_hash"]:
-        attempts = await db.fetchval(
-            "UPDATE tripos_login_codes SET attempts = attempts + 1 "
-            "WHERE id = $1 RETURNING attempts",
-            row["id"],
-        )
-        return "too_many" if attempts is not None and attempts >= MAX_CODE_ATTEMPTS else "invalid"
-    consumed = await db.fetchrow(
-        "UPDATE tripos_login_codes SET used_at = now() "
-        "WHERE id = $1 AND used_at IS NULL RETURNING id",
-        row["id"],
-    )
-    return "ok" if consumed is not None else "invalid"  # race: someone else won
-
-
-# ---------------------------------------------------------------- rate limits
-
-
-async def send_allowed(email: str, ip: str) -> bool:
-    """May we send a sign-in email to this address from this IP right now?
-
-    Caps are enforced quietly — the caller responds identically either way, so the
-    endpoint can't be used to probe accounts or the limiter.
-    """
-    email = _normalize_email(email)
-    by_email = await db.fetchval(
-        "SELECT count(*) FROM tripos_email_sends "
-        "WHERE email = $1 AND created_at > now() - interval '1 hour'",
-        email,
-    )
-    if by_email is not None and by_email >= MAX_SENDS_PER_EMAIL_PER_HOUR:
-        return False
-    by_ip = await db.fetchval(
-        "SELECT count(*) FROM tripos_email_sends "
-        "WHERE ip = $1 AND created_at > now() - interval '1 hour'",
-        ip,
-    )
-    if by_ip is not None and by_ip >= MAX_SENDS_PER_IP_PER_HOUR:
-        return False
-    await db.execute("INSERT INTO tripos_email_sends (email, ip) VALUES ($1, $2)", email, ip)
-    return True

@@ -62,11 +62,6 @@ class Settings(BaseSettings):
     cookie_secure: bool = Field(
         default=False, description="Set Secure flag on auth cookies (true in prod)."
     )
-    # Resend (https://resend.com) sends the magic-link sign-in emails.
-    resend_api_key: str | None = Field(default=None, description="Resend API key.")
-    resend_from: str | None = Field(
-        default=None, description='Sender, e.g. "TripOS <login@yourdomain.com>".'
-    )
     # Google OAuth (optional): the "Continue with Google" button appears only when
     # BOTH are set. Create at https://console.cloud.google.com/apis/credentials.
     google_client_id: str | None = Field(default=None, description="Google OAuth client id.")

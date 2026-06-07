@@ -7,66 +7,6 @@
       <div class="mt-1 text-sm text-slate-400">Your AI Travel Partner</div>
     </div>
 
-    {% if error %}
-    <div class="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-300">{{ error }}</div>
-    {% endif %}
-
-    {% if stage == 'code' %}
-    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-4">
-      <div class="text-center">
-        <div class="font-semibold">Enter your verification code</div>
-        <p class="mt-1 text-sm text-slate-400">
-          We sent a 6-digit code to <span class="text-slate-200">{{ email }}</span>
-        </p>
-      </div>
-      <form method="post" action="/auth/code" class="space-y-3">
-        <input type="hidden" name="email" value="{{ email }}">
-        <input type="text" name="code" required autofocus
-          inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-          autocomplete="one-time-code" placeholder="••••••"
-          {% if code_dead %}disabled{% endif %}
-          class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-center
-                 text-2xl tracking-[0.5em] text-slate-100 placeholder:text-slate-600
-                 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-40">
-        <button type="submit" {% if code_dead %}disabled{% endif %}
-          class="w-full rounded-xl bg-sky-600 px-4 py-3 font-semibold hover:bg-sky-500
-                 transition disabled:opacity-40">
-          Verify →
-        </button>
-      </form>
-      <form method="post" action="/auth/email" class="text-center">
-        <input type="hidden" name="email" value="{{ email }}">
-        <button id="resend-btn" type="submit" disabled
-          class="text-sm text-slate-500 disabled:cursor-default
-                 enabled:text-sky-400 enabled:hover:underline">
-          Resend code in <span id="resend-secs">{{ cooldown }}</span>s
-        </button>
-      </form>
-      <p class="text-center text-xs text-slate-500">
-        The code expires in 10 minutes and works once.
-        <a href="/login" class="text-sky-400 hover:underline">Different email?</a>
-      </p>
-    </div>
-    <script>
-      (function () {
-        const btn = document.getElementById('resend-btn');
-        const secs = document.getElementById('resend-secs');
-        let left = parseInt(secs.textContent, 10) || 0;
-        function tick() {
-          if (left <= 0) {
-            btn.disabled = false;
-            btn.textContent = 'Resend Code';
-            return;
-          }
-          secs.textContent = left;
-          left -= 1;
-          setTimeout(tick, 1000);
-        }
-        tick();
-      })();
-    </script>
-
-    {% else %}
     <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-4">
       <p class="text-center text-sm text-slate-400">
         Sign in to start planning and save your trips.
@@ -84,25 +24,15 @@
         </svg>
         Continue with Google
       </a>
-      <div class="flex items-center gap-3 text-xs text-slate-600">
-        <div class="h-px flex-1 bg-slate-800"></div> or <div class="h-px flex-1 bg-slate-800"></div>
-      </div>
-      {% endif %}
-
-      <form method="post" action="/auth/email" class="space-y-3">
-        <input type="email" name="email" required placeholder="you@example.com"
-          class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100
-                 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500">
-        <button type="submit"
-          class="w-full rounded-xl bg-sky-600 px-4 py-3 font-semibold hover:bg-sky-500 transition">
-          Send Verification Code
-        </button>
-      </form>
       <p class="text-center text-xs text-slate-500">
-        We'll email you a 6-digit code — no password needed, ever.
+        One tap — no passwords, no codes, ever.
       </p>
+      {% else %}
+      <p class="text-center text-sm text-amber-300/80">
+        Sign-in isn't configured in this environment yet.
+      </p>
+      {% endif %}
     </div>
-    {% endif %}
 
     <p class="text-center text-sm">
       <a href="/" class="text-sky-400 hover:underline">← Back to TripOS</a>

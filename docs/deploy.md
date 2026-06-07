@@ -100,7 +100,7 @@ credit. It never sleeps, which is the whole point for an always-on agent.
 The shared APP_PASSWORD gate is GONE — passwordless accounts replace it. Deploying this
 build requires, via `railway variables --set`:
 
-1. `RESEND_API_KEY` + `RESEND_FROM` — sign-in emails (resend.com, free tier).
+1. ~~RESEND vars~~ — email auth removed 2026-06-08 (Google-only).
 2. `APP_BASE_URL=https://tripos-web-production-4f1c.up.railway.app` — EXACT https URL
    (magic links and the Google redirect are built from it).
 3. `COOKIE_SECURE=true` — ⚠️ mandatory: session cookies must be https-only in prod

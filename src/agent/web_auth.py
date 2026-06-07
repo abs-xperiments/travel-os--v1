@@ -27,7 +27,6 @@ from fastapi.templating import Jinja2Templates
 from loguru import logger
 
 from agent.config import get_settings
-from agent.services import email as email_service
 from agent.tripos import accounts
 
 HERE = Path(__file__).parent
@@ -58,109 +57,20 @@ async def _sign_in(response: Response, user_id: str) -> None:
     response.delete_cookie(TRIP_COOKIE, path="/")
 
 
-def _login_ctx(request: Request, **extra: object) -> dict:
-    settings = get_settings()
-    return {
-        "google_enabled": bool(settings.google_client_id and settings.google_client_secret),
-        "stage": "email",
-        "error": None,
-        **extra,
-    }
-
-
 @router.get("/login")
 async def login_page(request: Request) -> Response:
+    """Google-only sign-in (email verification codes were removed by user decision,
+    2026-06-08 — Google covers the audience; revisit with evidence of Google-less users)."""
     if getattr(request.state, "user", None) is not None:
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(request, "login.html", _login_ctx(request))
-
-
-@router.post("/auth/email")
-async def auth_email(request: Request, email: Annotated[str, Form()]) -> Response:
-    """Send (or resend) a 6-digit verification code.
-
-    Two failure classes, two behaviors (the lesson of the silent-outage bug): anything
-    ADDRESS-related stays generic — the code page renders the same whether the account
-    exists or the rate cap was hit (no enumeration, no limiter oracle). But a SYSTEM
-    failure (provider down, sender misconfigured) is surfaced honestly — pretending we
-    sent an email we know we didn't is a lie, not security.
-    """
-    address = email.strip().lower()
-    if "@" not in address:
-        return templates.TemplateResponse(
-            request, "login.html", _login_ctx(request, error="That doesn't look like an email.")
-        )
-    ip = request.client.host if request.client else "unknown"
-
-    cooldown = await accounts.seconds_until_resend(address)
-    if cooldown > 0:  # server-enforced resend cooldown — the UI timer is just decoration
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            _login_ctx(request, stage="code", email=address, cooldown=cooldown),
-        )
-
-    if await accounts.send_allowed(address, ip):
-        code = await accounts.create_login_code(address)
-        try:
-            await email_service.send_verification_code(address, code)
-        except email_service.EmailNotConfigured:
-            logger.error("email sign-in attempted but Resend is not configured")
-            return templates.TemplateResponse(
-                request,
-                "login.html",
-                _login_ctx(request, error="Email sign-in isn't available right now."),
-            )
-        except email_service.EmailDeliveryError:
-            return templates.TemplateResponse(
-                request,
-                "login.html",
-                _login_ctx(
-                    request,
-                    error="We couldn't send the email right now — please try again in a minute.",
-                ),
-            )
-    # Rate-capped sends fall through to the same page as successful ones (no oracle).
+    settings = get_settings()
     return templates.TemplateResponse(
         request,
         "login.html",
-        _login_ctx(request, stage="code", email=address, cooldown=accounts.RESEND_COOLDOWN_SECONDS),
+        {
+            "google_enabled": bool(settings.google_client_id and settings.google_client_secret),
+        },
     )
-
-
-_CODE_ERRORS = {
-    "invalid": "That code isn't right — check the most recent email.",
-    "none": "That code isn't right — check the most recent email.",
-    "expired": "That code has expired — send yourself a new one.",
-    "too_many": "Too many attempts — request a new code to continue.",
-}
-
-
-@router.post("/auth/code")
-async def auth_code(
-    request: Request, email: Annotated[str, Form()], code: Annotated[str, Form()]
-) -> Response:
-    """Verify the 6-digit code and sign the user in (find-or-create, one account per email)."""
-    address = email.strip().lower()
-    outcome = await accounts.verify_login_code(address, code)
-    if outcome != "ok":
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            _login_ctx(
-                request,
-                stage="code",
-                email=address,
-                cooldown=await accounts.seconds_until_resend(address),
-                error=_CODE_ERRORS.get(outcome, _CODE_ERRORS["invalid"]),
-                code_dead=outcome in ("expired", "too_many"),
-            ),
-        )
-    user, created = await accounts.find_or_create_user(address, provider="email")
-    destination = "/welcome" if created and not user.name else "/"
-    response = RedirectResponse(destination, status_code=303)
-    await _sign_in(response, user.id)
-    return response
 
 
 @router.get("/welcome")

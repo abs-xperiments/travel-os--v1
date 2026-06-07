@@ -60,12 +60,8 @@ honest "here's what I'm not sure about."
 
 | What could go wrong | How likely / how bad | How TripOS should handle it |
 |---------------------|----------------------|------------------------------|
-| **Verification code brute-forced** | medium / bad | 6 digits = 1M combinations, but: 5 attempts per code, 10-minute expiry, one-time use, per-email/IP send caps — worst-case guess odds ≈ 0.0005% per code. |
-| **Expired / reused / wrong code** entered | high / mild | Specific, friendly errors ("that code expired — send a new one"), with Resend right there. Never a stack trace, never generic. |
-| **Send failure hidden by the no-enumeration response** (the bug that shipped: unverified sender domain → 403 swallowed → 'Check your email' lie) | high / bad | Two failure classes, two responses: address-related stays generic (no enumeration), but a SYSTEM/provider failure says honestly "we couldn't send right now" and is logged loudly. |
-| **Email delivery fails** (Resend down, bad address) | medium / bad | Honest message ("couldn't send right now — try again in a minute"); errors logged; the generic success message still never reveals whether an account exists. |
-| **Account enumeration** via the email form | medium / mild | Same response whether the address is new, existing, or rate-limited: "Check your email." |
-| **Magic-link spam** (someone hammers a victim's inbox) | medium / mild | Per-email and per-IP hourly caps, silently enforced behind the same generic response. |
+| **User has no Google account** (Google is the only method, 2026-06-08) | low / bad | Honest line on the login page; revisit email/passkeys with evidence of real demand. PERMANENT LESSON from the removed email flow: never hide a SYSTEM failure behind a privacy-generic response. |
+| **Google consent screen still in Testing** | high / bad (blocks all non-listed users) | Publish the consent screen before sharing TripOS beyond the test list — with Google-only auth, unpublished = locked out. |
 | **Stale trip cookie from another account** on a shared device | medium / bad | Trip cookie is honoured only if the trip belongs to the signed-in user; login clears it. Worst case: a fresh trip, never someone else's. |
 | **Another user's trip URL opened** (incl. /print) | medium / bad | 404 — indistinguishable from a trip that never existed. |
 | **Unverified Google email** trying to merge into an existing account | low / bad | `email_verified=true` required before find-or-create; otherwise refused. |

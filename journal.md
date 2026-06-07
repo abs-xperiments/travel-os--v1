@@ -918,3 +918,16 @@ GOOGLE_CLIENT_SECRET line — corrupting both invisibly. Lesson: never append to
 blindly; normalize trailing newlines first (the repair now always writes one).
 DEPLOY GATE (user-mandated): held until the Resend domain is verified — without it, ONLY the
 account owner's address can receive codes, the exact outage we're fixing.
+
+## 2026-06-08 12:00 — Email auth REMOVED entirely: Google-only (user decision)
+After the domain-ownership discussion (motherofagents.com is the mentor's — verifying it was
+neither possible nor right) and weighing alternatives (passkeys need email for recovery;
+phone OTP in India means DLT paperwork + per-SMS cost; more OAuth providers add little),
+the user chose Google-only. Removed: /auth/email + /auth/code routes, the code stage UI,
+the whole verification-code store + rate limiting, services/email.py, RESEND config, and
+(migration 007) the three email-auth tables — built this morning, deleted this afternoon,
+and that's FINE: the lessons survive in failure_modes.md (never hide a SYSTEM failure
+behind a privacy-generic response) and the find-or-create/merge machinery is provider-
+agnostic, so email or passkeys can return later without re-architecture. NEW CRITICAL
+DEPENDENCY: with Google as the only door, the consent screen's Testing mode IS the user
+allow-list — publishing it is now the gate to real users (documented in failure_modes).
