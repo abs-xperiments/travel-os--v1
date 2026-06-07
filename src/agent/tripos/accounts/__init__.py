@@ -31,7 +31,9 @@ from agent.services import db
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
-LOGIN_TOKEN_TTL_MINUTES = 15
+LOGIN_CODE_TTL_MINUTES = 10
+MAX_CODE_ATTEMPTS = 5
+RESEND_COOLDOWN_SECONDS = 40
 SESSION_TTL_DAYS = 90
 SESSION_TOUCH_INTERVAL = "1 day"  # roll the expiry at most this often (write throttling)
 MAX_SENDS_PER_EMAIL_PER_HOUR = 5
@@ -196,48 +198,87 @@ async def delete_all_sessions(user_id: str) -> None:
     await db.execute("DELETE FROM tripos_sessions WHERE user_id = $1", user_id)
 
 
-# -------------------------------------------------------------- sign-in tokens
+# ----------------------------------------------------------- verification codes
 
 
-async def create_login_token(email: str) -> str:
-    """Mint a single-use sign-in token for this email; returns the RAW token (for the link)."""
-    raw = secrets.token_urlsafe(32)
+def _code_hash(email: str, code: str) -> str:
+    """Codes are bound to the address they were sent to — a code for one inbox can never
+    verify another."""
+    return _hash(f"{_normalize_email(email)}:{code}")
+
+
+async def create_login_code(email: str) -> str:
+    """Mint a fresh 6-digit code for this email; returns the RAW code (for the email body).
+
+    Requesting a new code INVALIDATES every previous unused code for the address — only
+    the latest email is ever valid (the spec's resend behavior).
+    """
+    email = _normalize_email(email)
+    code = f"{secrets.randbelow(1_000_000):06d}"
     await db.execute(
-        "INSERT INTO tripos_login_tokens (token_hash, email, expires_at) "
-        f"VALUES ($1, $2, now() + interval '{LOGIN_TOKEN_TTL_MINUTES} minutes')",
-        _hash(raw),
+        "UPDATE tripos_login_codes SET used_at = now() WHERE email = $1 AND used_at IS NULL",
+        email,
+    )
+    await db.execute(
+        "INSERT INTO tripos_login_codes (email, code_hash, expires_at) "
+        f"VALUES ($1, $2, now() + interval '{LOGIN_CODE_TTL_MINUTES} minutes')",
+        email,
+        _code_hash(email, code),
+    )
+    return code
+
+
+async def seconds_until_resend(email: str) -> int:
+    """How long before this address may request another code (0 = now). Server-side
+    enforcement of the resend cooldown — the UI countdown alone is just decoration."""
+    created = await db.fetchval(
+        "SELECT created_at FROM tripos_login_codes "
+        "WHERE email = $1 ORDER BY created_at DESC LIMIT 1",
         _normalize_email(email),
     )
-    return raw
-
-
-async def peek_login_token(raw_token: str) -> str | None:
-    """Is this token still valid (unused, unexpired)? Returns its email WITHOUT consuming.
-
-    Used by the magic link's GET landing page — mail scanners prefetch GETs, so the GET
-    must never spend the token. Only the human's confirm POST consumes it.
-    """
-    row = await db.fetchrow(
-        "SELECT email FROM tripos_login_tokens "
-        "WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()",
-        _hash(raw_token),
+    if created is None:
+        return 0
+    remaining = await db.fetchval(
+        f"SELECT GREATEST(0, CEIL(EXTRACT(EPOCH FROM "
+        f"($1::timestamptz + interval '{RESEND_COOLDOWN_SECONDS} seconds') - now())))::int",
+        created,
     )
-    return row["email"] if row else None
+    return int(remaining or 0)
 
 
-async def consume_login_token(raw_token: str) -> str | None:
-    """Atomically spend the token; returns its email, or None if already used/expired.
+async def verify_login_code(email: str, code: str) -> str:
+    """Check a code against the LATEST one sent to this address.
 
-    The conditional UPDATE makes double-submits race-safe: exactly one caller gets the
-    email back; everyone else gets None.
+    Returns one of: "ok" (consumed — race-safe, exactly one winner), "invalid" (wrong
+    code; counts an attempt), "expired", "too_many" (attempt cap hit), "none" (no code
+    outstanding). Every state maps to a specific, honest message in the UI.
     """
+    email = _normalize_email(email)
     row = await db.fetchrow(
-        "UPDATE tripos_login_tokens SET used_at = now() "
-        "WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() "
-        "RETURNING email",
-        _hash(raw_token),
+        "SELECT id, code_hash, expires_at < now() AS expired, attempts "
+        "FROM tripos_login_codes WHERE email = $1 AND used_at IS NULL "
+        "ORDER BY created_at DESC LIMIT 1",
+        email,
     )
-    return row["email"] if row else None
+    if row is None:
+        return "none"
+    if row["expired"]:
+        return "expired"
+    if row["attempts"] >= MAX_CODE_ATTEMPTS:
+        return "too_many"
+    if _code_hash(email, code.strip()) != row["code_hash"]:
+        attempts = await db.fetchval(
+            "UPDATE tripos_login_codes SET attempts = attempts + 1 "
+            "WHERE id = $1 RETURNING attempts",
+            row["id"],
+        )
+        return "too_many" if attempts is not None and attempts >= MAX_CODE_ATTEMPTS else "invalid"
+    consumed = await db.fetchrow(
+        "UPDATE tripos_login_codes SET used_at = now() "
+        "WHERE id = $1 AND used_at IS NULL RETURNING id",
+        row["id"],
+    )
+    return "ok" if consumed is not None else "invalid"  # race: someone else won
 
 
 # ---------------------------------------------------------------- rate limits

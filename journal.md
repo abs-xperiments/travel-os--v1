@@ -901,3 +901,20 @@ replace magic links with 6-digit verification codes: stay-in-browser UX, 10-min 
 one-time, 5 attempts, resend-with-40s-cooldown (client AND server enforced), specific error
 states. Nice side effect: the entire scanner-prefetch failure class (the #1 magic-link
 pitfall we engineered around) simply disappears — nothing in a code email is clickable.
+
+## 2026-06-08 10:30 — Verification-code auth BUILT + locally E2E green; .env glue bug
+Magic links replaced per user spec: 6-digit codes (secrets.randbelow, zero-padded), bound to
+the address via sha256(email:code), 10-min TTL, ONE use (atomic consume, race-tested), 5
+attempts then dead, resend invalidates all previous codes, 40s cooldown enforced server-side
+(seconds_until_resend) with the UI countdown as decoration. The error contract is explicit:
+invalid/expired/too_many each get their own honest message, and — the root-cause fix —
+SYSTEM failures (EmailNotConfigured/EmailDeliveryError) surface as "we couldn't send right
+now" instead of hiding behind the no-enumeration response. Side benefit: the entire
+scanner-prefetch class (magic links' #1 pitfall) no longer exists. Local E2E: honest
+delivery error ✓, owner-address send → code stage ✓, wrong-code error ✓, correct code →
+session ✓. DEBUGGING DETOUR worth remembering: "Resend not configured" persisted because the
+user's .env edit left NO TRAILING NEWLINE, so my `echo >>` GLUED RESEND_FROM onto the
+GOOGLE_CLIENT_SECRET line — corrupting both invisibly. Lesson: never append to dotfiles
+blindly; normalize trailing newlines first (the repair now always writes one).
+DEPLOY GATE (user-mandated): held until the Resend domain is verified — without it, ONLY the
+account owner's address can receive codes, the exact outage we're fixing.

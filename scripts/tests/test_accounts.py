@@ -72,27 +72,45 @@ async def test_find_or_create_is_one_account_per_email():
 
 
 @pytest.mark.integration
-async def test_login_token_single_use_and_peek_does_not_consume():
-    await accounts.init_db()
-    raw = await accounts.create_login_token("test.tokens@example.com")
-    try:
-        # Peek (the scanner-safe GET) any number of times — never consumes.
-        assert await accounts.peek_login_token(raw) == "test.tokens@example.com"
-        assert await accounts.peek_login_token(raw) == "test.tokens@example.com"
-        # Concurrent double-consume (double click / scanner race): exactly ONE winner.
-        a, b = await asyncio.gather(
-            accounts.consume_login_token(raw), accounts.consume_login_token(raw)
-        )
-        assert sorted([a, b], key=lambda x: x is None) == ["test.tokens@example.com", None]
-        # Spent tokens neither peek nor consume.
-        assert await accounts.peek_login_token(raw) is None
-        assert await accounts.consume_login_token(raw) is None
-    finally:
-        from agent.services import db
+async def test_verification_code_full_matrix():
+    """6 digits, one-time, email-bound, attempt-capped, resend-invalidates — the whole spec."""
+    from agent.services import db
 
-        await db.execute(
-            "DELETE FROM tripos_login_tokens WHERE email = $1", "test.tokens@example.com"
+    await accounts.init_db()
+    email = "test.codes@example.com"
+    try:
+        code = await accounts.create_login_code(email)
+        assert len(code) == 6 and code.isdigit()
+
+        # Email binding: the right code against a DIFFERENT address never verifies.
+        assert await accounts.verify_login_code("other@example.com", code) == "none"
+
+        # Wrong guesses count attempts; the cap kills the code (4 invalid, 5th -> too_many).
+        for _ in range(accounts.MAX_CODE_ATTEMPTS - 1):
+            assert await accounts.verify_login_code(email, "000000") == "invalid"
+        assert await accounts.verify_login_code(email, "000000") == "too_many"
+        # Even the CORRECT code is dead after the cap.
+        assert await accounts.verify_login_code(email, code) == "too_many"
+
+        # Resend mints a new code and invalidates everything before it: the OLD code is
+        # now just a wrong guess against the new one (costs an attempt, never verifies).
+        code2 = await accounts.create_login_code(email)
+        assert await accounts.verify_login_code(email, code) == "invalid"
+        # Concurrent double-submit of the right code: exactly ONE winner.
+        a, b = await asyncio.gather(
+            accounts.verify_login_code(email, code2),
+            accounts.verify_login_code(email, code2),
         )
+        assert sorted([a, b]) == ["invalid", "ok"]
+        # Spent code can't be used again.
+        assert await accounts.verify_login_code(email, code2) == "none"
+
+        # Server-side resend cooldown is live right after a send.
+        await accounts.create_login_code(email)
+        assert 0 < await accounts.seconds_until_resend(email) <= accounts.RESEND_COOLDOWN_SECONDS
+    finally:
+        await db.execute("DELETE FROM tripos_login_codes WHERE email = ANY($1)", [email])
+        await db.execute("DELETE FROM tripos_email_sends WHERE email = $1", email)
 
 
 @pytest.mark.integration

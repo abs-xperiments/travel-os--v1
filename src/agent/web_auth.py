@@ -58,66 +58,105 @@ async def _sign_in(response: Response, user_id: str) -> None:
     response.delete_cookie(TRIP_COOKIE, path="/")
 
 
+def _login_ctx(request: Request, **extra: object) -> dict:
+    settings = get_settings()
+    return {
+        "google_enabled": bool(settings.google_client_id and settings.google_client_secret),
+        "stage": "email",
+        "error": None,
+        **extra,
+    }
+
+
 @router.get("/login")
 async def login_page(request: Request) -> Response:
     if getattr(request.state, "user", None) is not None:
         return RedirectResponse("/", status_code=303)
-    settings = get_settings()
-    return templates.TemplateResponse(
-        request,
-        "login.html",
-        {
-            "google_enabled": bool(settings.google_client_id and settings.google_client_secret),
-            "sent": False,
-        },
-    )
+    return templates.TemplateResponse(request, "login.html", _login_ctx(request))
 
 
 @router.post("/auth/email")
 async def auth_email(request: Request, email: Annotated[str, Form()]) -> Response:
-    """Send a sign-in link. The response is IDENTICAL whatever happens (no enumeration)."""
-    settings = get_settings()
+    """Send (or resend) a 6-digit verification code.
+
+    Two failure classes, two behaviors (the lesson of the silent-outage bug): anything
+    ADDRESS-related stays generic — the code page renders the same whether the account
+    exists or the rate cap was hit (no enumeration, no limiter oracle). But a SYSTEM
+    failure (provider down, sender misconfigured) is surfaced honestly — pretending we
+    sent an email we know we didn't is a lie, not security.
+    """
     address = email.strip().lower()
+    if "@" not in address:
+        return templates.TemplateResponse(
+            request, "login.html", _login_ctx(request, error="That doesn't look like an email.")
+        )
     ip = request.client.host if request.client else "unknown"
-    try:
-        if "@" in address and await accounts.send_allowed(address, ip):
-            raw = await accounts.create_login_token(address)
-            link = f"{settings.app_base_url.rstrip('/')}/auth/verify?token={raw}"
-            await email_service.send_magic_link(address, link)
-    except Exception:
-        # Logged for us; the user still sees the generic page (and can retry).
-        logger.exception("magic-link send failed for {}", address)
+
+    cooldown = await accounts.seconds_until_resend(address)
+    if cooldown > 0:  # server-enforced resend cooldown — the UI timer is just decoration
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            _login_ctx(request, stage="code", email=address, cooldown=cooldown),
+        )
+
+    if await accounts.send_allowed(address, ip):
+        code = await accounts.create_login_code(address)
+        try:
+            await email_service.send_verification_code(address, code)
+        except email_service.EmailNotConfigured:
+            logger.error("email sign-in attempted but Resend is not configured")
+            return templates.TemplateResponse(
+                request,
+                "login.html",
+                _login_ctx(request, error="Email sign-in isn't available right now."),
+            )
+        except email_service.EmailDeliveryError:
+            return templates.TemplateResponse(
+                request,
+                "login.html",
+                _login_ctx(
+                    request,
+                    error="We couldn't send the email right now — please try again in a minute.",
+                ),
+            )
+    # Rate-capped sends fall through to the same page as successful ones (no oracle).
     return templates.TemplateResponse(
         request,
         "login.html",
-        {
-            "google_enabled": bool(settings.google_client_id and settings.google_client_secret),
-            "sent": True,
-            "sent_to": address,
-        },
+        _login_ctx(request, stage="code", email=address, cooldown=accounts.RESEND_COOLDOWN_SECONDS),
     )
 
 
-@router.get("/auth/verify")
-async def verify_landing(request: Request, token: str = "") -> Response:
-    """The magic link's GET — validates but NEVER consumes (scanner-prefetch-safe)."""
-    email_addr = await accounts.peek_login_token(token) if token else None
-    return templates.TemplateResponse(
-        request,
-        "auth_confirm.html",
-        {"token": token if email_addr else None, "email": email_addr},
-    )
+_CODE_ERRORS = {
+    "invalid": "That code isn't right — check the most recent email.",
+    "none": "That code isn't right — check the most recent email.",
+    "expired": "That code has expired — send yourself a new one.",
+    "too_many": "Too many attempts — request a new code to continue.",
+}
 
 
-@router.post("/auth/verify")
-async def verify_consume(request: Request, token: Annotated[str, Form()]) -> Response:
-    """The confirm button — atomically spends the token and signs the user in."""
-    email_addr = await accounts.consume_login_token(token)
-    if email_addr is None:  # spent or expired — friendly retry page
+@router.post("/auth/code")
+async def auth_code(
+    request: Request, email: Annotated[str, Form()], code: Annotated[str, Form()]
+) -> Response:
+    """Verify the 6-digit code and sign the user in (find-or-create, one account per email)."""
+    address = email.strip().lower()
+    outcome = await accounts.verify_login_code(address, code)
+    if outcome != "ok":
         return templates.TemplateResponse(
-            request, "auth_confirm.html", {"token": None, "email": None}
+            request,
+            "login.html",
+            _login_ctx(
+                request,
+                stage="code",
+                email=address,
+                cooldown=await accounts.seconds_until_resend(address),
+                error=_CODE_ERRORS.get(outcome, _CODE_ERRORS["invalid"]),
+                code_dead=outcome in ("expired", "too_many"),
+            ),
         )
-    user, created = await accounts.find_or_create_user(email_addr, provider="email")
+    user, created = await accounts.find_or_create_user(address, provider="email")
     destination = "/welcome" if created and not user.name else "/"
     response = RedirectResponse(destination, status_code=303)
     await _sign_in(response, user.id)
