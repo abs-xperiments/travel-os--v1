@@ -60,8 +60,9 @@ honest "here's what I'm not sure about."
 
 | What could go wrong | How likely / how bad | How TripOS should handle it |
 |---------------------|----------------------|------------------------------|
-| **Email scanner consumes the magic link** before the human clicks (Outlook/Gmail prefetch GETs) | high / bad | The link's GET never consumes — it shows a "Confirm sign-in" page; only the button's POST consumes the token (atomically). Scanners don't press buttons. |
-| **Expired or already-used link** clicked | high / mild | Friendly "this link has expired — request a new one" page with the email box right there. Never a stack trace, never a dead end. |
+| **Verification code brute-forced** | medium / bad | 6 digits = 1M combinations, but: 5 attempts per code, 10-minute expiry, one-time use, per-email/IP send caps — worst-case guess odds ≈ 0.0005% per code. |
+| **Expired / reused / wrong code** entered | high / mild | Specific, friendly errors ("that code expired — send a new one"), with Resend right there. Never a stack trace, never generic. |
+| **Send failure hidden by the no-enumeration response** (the bug that shipped: unverified sender domain → 403 swallowed → 'Check your email' lie) | high / bad | Two failure classes, two responses: address-related stays generic (no enumeration), but a SYSTEM/provider failure says honestly "we couldn't send right now" and is logged loudly. |
 | **Email delivery fails** (Resend down, bad address) | medium / bad | Honest message ("couldn't send right now — try again in a minute"); errors logged; the generic success message still never reveals whether an account exists. |
 | **Account enumeration** via the email form | medium / mild | Same response whether the address is new, existing, or rate-limited: "Check your email." |
 | **Magic-link spam** (someone hammers a victim's inbox) | medium / mild | Per-email and per-IP hourly caps, silently enforced behind the same generic response. |

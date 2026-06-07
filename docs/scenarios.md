@@ -189,13 +189,20 @@ ever).
   Login / Sign Up top-right — no marketing page, no wall. Attempting to SEND shows
   "Sign in to start planning and save your trips" with a way into login. Nothing is planned,
   nothing is spent, no trip row is created.
-- **Email magic link (new user):** enter email → "Check your email" (same message whether or
-  not the account exists — no enumeration) → click the link → a "Confirm sign-in" page with
-  one button → pressing it signs in → asked once "What should we call you?" → enters TripOS.
-- **Email magic link (returning user):** same flow, no name question, lands straight in chat.
-- **Scanner-proof links:** a mail scanner GET-ing the link (curl simulation) does NOT consume
-  it — the human's confirm click still works. A link works exactly once; a second use or a
-  15-minute-old link shows a friendly "request a new one" page, never an error trace.
+- **Email verification code (new user):** enter email → "Send Verification Code" → the
+  SAME message whether or not the account exists (no enumeration) → a 6-digit code arrives →
+  enter it (mobile keyboards autofill it) → Verify → asked once "What should we call you?" →
+  enters TripOS.
+- **Email verification code (returning user):** same flow, no name question, straight to chat.
+- **Code rules:** 6 digits, expires in 10 minutes, works exactly ONCE, bound to the email it
+  was sent to. Requesting a new code invalidates the old one. After 5 wrong attempts the code
+  is dead and a new one must be requested.
+- **Resend cooldown:** after sending, "Resend code in 40s" counts down; at 0 it becomes
+  "Resend Code" (a new code, fresh countdown). The cooldown is enforced server-side too.
+- **Specific errors, never generic:** wrong code → "That code isn't right"; expired → "That
+  code expired — send a new one"; too many tries → "Too many attempts — request a new code";
+  provider/send failure → "We couldn't send the email right now — try again in a minute"
+  (a SYSTEM failure is surfaced honestly, never hidden behind 'Check your email').
 - **Persistent session:** sign in once → return tomorrow / next week / next month still
   signed in (90-day rolling). Logout, or a long absence, requires signing in again.
 - **Google (when configured):** "Continue with Google" → pick account → straight in; name,

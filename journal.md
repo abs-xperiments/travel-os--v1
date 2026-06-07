@@ -886,3 +886,18 @@ revoked. All R2 vars pushed to Railway via the masked pipeline, redeployed, prod
 LESSON: a secret rotation isn't finished until every environment that holds the secret is
 updated — when one credential changes, diff .env against Railway for the WHOLE family
 (key id + secret + account + bucket), not just the value that prompted the rotation.
+
+## 2026-06-08 09:00 — Email auth root cause + pivot to verification codes (user spec)
+Users got "Check your email" and nothing arrived. ROOT CAUSE (traced live against Resend with
+the prod key): the onboarding sender (onboarding@resend.dev) can only deliver to the Resend
+ACCOUNT OWNER's address — every other recipient gets 403 "verify a domain" — and our
+enumeration-proof handler swallowed the exception, so the UI lied. TWO lessons: (1) the
+no-enumeration pattern must distinguish "address may not exist" (stay generic) from "the
+SYSTEM cannot send" (surface honestly + log loudly) — collapsing both into one response
+turned a config error into a silent outage; (2) provider sandboxes (Resend onboarding domain)
+make "it worked in my tests" worthless — my tests went to the one address that COULD receive.
+Fix #1 = domain verification (user's DNS action, motherofagents.com). Fix #2 (user spec) =
+replace magic links with 6-digit verification codes: stay-in-browser UX, 10-min expiry,
+one-time, 5 attempts, resend-with-40s-cooldown (client AND server enforced), specific error
+states. Nice side effect: the entire scanner-prefetch failure class (the #1 magic-link
+pitfall we engineered around) simply disappears — nothing in a code email is clickable.
