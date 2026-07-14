@@ -1,6 +1,82 @@
 {% extends "base.html" %}
 {% block body %}
 {% include "_splash.html" %}
+{% if not transcript %}
+<!-- The Worldscape: a cinematic journey through real Earth — sunrise valley, high
+     ridgelines, forest light, still waters, aurora — that lands at the chat. Presence,
+     not spectacle. Fresh visits only; skippable instantly; never mounts under
+     reduced-motion or twice a session; if the world can't load fast, the product wins. -->
+<link rel="stylesheet" href="/static/worldscape.css">
+<div id="worldscape" hidden role="region" aria-label="Welcome journey — scroll to travel, or skip">
+  <div class="ws-stage" aria-hidden="true"></div>
+  <div class="ws-fog" aria-hidden="true"></div>
+  <div class="ws-fog2" aria-hidden="true"></div>
+  <div class="ws-vignette" aria-hidden="true"></div>
+  <div class="ws-grain" aria-hidden="true"></div>
+  <button type="button" class="btn-ghost ws-skip text-sm" id="ws-skip">Skip to planning →</button>
+  <div class="ws-scroll" tabindex="0">
+    <div class="ws-track"></div>
+  </div>
+  <section class="ws-section" style="opacity:1">
+    <div class="ws-kicker">First light</div>
+    <h2 class="ws-title">Feel the trip before you take it.</h2>
+    <p class="ws-sub">You're standing in it already. Scroll to walk.</p>
+  </section>
+  <section class="ws-section">
+    <div class="ws-kicker">The high country</div>
+    <h2 class="ws-title">Anywhere on Earth, planned around you.</h2>
+    <p class="ws-sub">Fjords, backwaters, deserts, old cities — name a place,
+      or just how you want to feel.</p>
+  </section>
+  <section class="ws-section">
+    <div class="ws-kicker">Under the canopy</div>
+    <h2 class="ws-title">Talk to it like a friend who's been everywhere.</h2>
+    <p class="ws-sub">It plans the days, the stays, the food, the budget —
+      and tells you honestly what won't work.</p>
+  </section>
+  <section class="ws-section">
+    <div class="ws-kicker">Still waters</div>
+    <h2 class="ws-title">Your plan becomes a journal.</h2>
+    <p class="ws-sub">Day-by-day chapters and a keepsake PDF your family
+      will actually read.</p>
+  </section>
+  <section class="ws-section">
+    <div class="ws-kicker">Nightfall</div>
+    <h2 class="ws-title">Where shall we go?</h2>
+    <div class="ws-cta"><button type="button" class="btn-primary" id="ws-begin">Begin the journey</button></div>
+  </section>
+  <div class="ws-hint">Scroll to travel</div>
+  <div class="ws-credit">photography via Unsplash</div>
+</div>
+<script type="module">
+  // Mount the journey only when it can be beautiful AND polite.
+  (function () {
+    const el = document.getElementById('worldscape');
+    if (!el) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const flown = sessionStorage.getItem('tripos_flown');
+    const save = navigator.connection && navigator.connection.saveData;
+    const land = () => { el.remove();
+      const inp = document.getElementById('chat-input'); if (inp) inp.focus(); };
+    if (reduced || flown || save) { el.remove(); return; }
+    import('/static/worldscape.js').then((m) => {
+      el.hidden = false;              // stays transparent until the first frame is ready
+      const world = m.start(el, () => { sessionStorage.setItem('tripos_flown', '1');
+        const inp = document.getElementById('chat-input'); if (inp) inp.focus(); });
+      const skip = () => { sessionStorage.setItem('tripos_flown', '1'); world.finish(); };
+      document.getElementById('ws-skip').addEventListener('click', skip);
+      document.getElementById('ws-begin').addEventListener('click', skip);
+      const onKey = (e) => {
+        if (e.key !== 'Escape') return;
+        document.removeEventListener('keydown', onKey);
+        skip();
+      };
+      document.addEventListener('keydown', onKey);
+      el.querySelector('.ws-scroll').focus({ preventScroll: true });
+    }).catch(land);   // any load/init failure -> straight to the product
+  })();
+</script>
+{% endif %}
 <div class="flex flex-col h-screen max-w-2xl mx-auto">
   <header class="glass mx-2 mt-2 flex items-center justify-between px-4 py-3 sm:mx-0">
     <div class="flex items-baseline gap-2">
