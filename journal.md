@@ -931,3 +931,15 @@ behind a privacy-generic response) and the find-or-create/merge machinery is pro
 agnostic, so email or passkeys can return later without re-architecture. NEW CRITICAL
 DEPENDENCY: with Google as the only door, the consent screen's Testing mode IS the user
 allow-list — publishing it is now the gate to real users (documented in failure_modes).
+
+## 2026-07-15 10:30 — Packaging Studio onboarded; master packaging roadmap written
+Entered Packaging Mode (AI-Packaging Studio): business logic is FROZEN — presentation only.
+Onboarding analysis confirmed the presentation seam: itineraries arrive as markdown over SSE
+and render via marked.js, so the premium itinerary experience will be a frontend transform
+of the finished reply — prompts, tools, and the SSE contract stay untouched. Persisted
+context (CLAUDE.md studio block + packaging/brain/), and wrote the 8-phase master roadmap
+to packaging/ROADMAP.md (vision/research → design system → global UI → itinerary journal →
+PDF export → living world/sound → perf+a11y launch sweep). Key decisions recorded in
+packaging/brain/decisions.md: no React/Next rewrite (keep buildless FastAPI/Jinja/HTMX;
+Three.js/GSAP via CDN if needed), and itinerary presentation via client-side markdown
+parsing with graceful fallback. Next: Phase 2 design vision → user approval gate before any code.
