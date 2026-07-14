@@ -1,46 +1,73 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-sky="dusk">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}TripOS{% endblock %}</title>
+  <title>{% block title %}TripOS — feel the trip before you take it{% endblock %}</title>
+  <meta name="description"
+        content="TravelOS is your AI travel companion — plan any trip on Earth and watch it become a beautiful, personal travel journal.">
+  <meta property="og:title" content="TripOS — your journey begins at planning">
+  <meta property="og:description"
+        content="The world's first travel planner that feels like traveling. Plan any destination; receive a crafted travel journal.">
+  <meta property="og:type" content="website">
   <!-- PWA: installable on Android/iOS/desktop from one codebase (no app store). -->
   <link rel="manifest" href="/static/manifest.webmanifest">
-  <meta name="theme-color" content="#0284c7">
+  <meta name="theme-color" content="#12142a">
   <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="TripOS">
-  <!-- HTMX (dynamic, no JS to write), Tailwind (styling), marked (render the agent's
-       markdown). All via CDN — no build step. The Tailwind CDN build is for
-       prototyping/teaching; a production app would compile it ahead of time. -->
+  <meta name="apple-mobile-web-app-title" content="TravelOS">
+  <!-- Type: Fraunces = the journal's editorial voice, Inter = the quiet UI hand. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;650&display=swap"
+        rel="stylesheet">
+  <!-- HTMX (dynamic, no JS to write), Tailwind (utilities), marked (agent markdown).
+       All via CDN — no build step. Design tokens + components live in theme.css. -->
   <script src="https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <style>
-    /* Minimal styling for the markdown the assistant returns (Tailwind's typography
-       plugin isn't in the CDN build, so we style the basics ourselves). */
-    .md h1,.md h2,.md h3{font-weight:700;margin:.6em 0 .3em}
-    .md h2{font-size:1.15rem}.md h3{font-size:1.05rem}
-    .md p{margin:.4em 0}.md ul,.md ol{margin:.4em 0;padding-left:1.25em;list-style:revert}
-    .md table{width:100%;border-collapse:collapse;margin:.5em 0;font-size:.9em}
-    .md th,.md td{border:1px solid #334155;padding:.35em .6em;text-align:left}
-    .md code{background:#1e293b;padding:.1em .35em;border-radius:.3em}
-    .md a{color:#38bdf8;text-decoration:underline}
-    .htmx-indicator{opacity:0;transition:opacity .2s}
-    .htmx-request .htmx-indicator,.htmx-request.htmx-indicator{opacity:1}
-  </style>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/journal.css">
+  <script>
+    // The sky follows the traveler's own hour — arriving at night feels like night.
+    (function () {
+      var h = new Date().getHours();
+      var sky = (h >= 5 && h < 8) ? 'dawn' : (h >= 8 && h < 16) ? 'day'
+              : (h >= 16 && h < 20) ? 'dusk' : 'night';
+      document.documentElement.dataset.sky = sky;
+    })();
+  </script>
+  <style>.htmx-indicator{opacity:0;transition:opacity .2s}
+    .htmx-request .htmx-indicator,.htmx-request.htmx-indicator{opacity:1}</style>
 </head>
-<body class="bg-slate-950 text-slate-100 antialiased">
+<body class="antialiased">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <!-- The living world: sky, stars, clouds, terrain, a passing plane. Pure CSS,
+       GPU-composited, stilled under prefers-reduced-motion. Decor only (aria-hidden). -->
+  <div id="world" aria-hidden="true">
+    <div class="w-stars"></div>
+    <div class="w-clouds-far"></div>
+    <div class="w-clouds"></div>
+    <div class="w-shooting"></div>
+    <div class="w-plane">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 15.5 13 11V4.75a1.25 1.25 0 0 0-2.5 0V11l-8.5 4.5v2l8.5-2.5v4.6l-2.3 1.6v1.3l3.55-1 3.55 1v-1.3l-2.3-1.6v-4.6l8.5 2.5v-2Z"/></svg>
+    </div>
+    <div class="w-terrain-far"></div>
+    <div class="w-terrain"></div>
+  </div>
+  <div id="main" class="above-world">
   {% block body %}
   <main class="max-w-2xl mx-auto px-4 py-12">{% block content %}{% endblock %}</main>
   {% endblock %}
+  </div>
   <script>
     // Render any new assistant bubbles (their raw markdown sits safely in a text node).
     function renderMarkdown(){
       document.querySelectorAll('.md[data-md]:not([data-done])').forEach(function(el){
         el.innerHTML = marked.parse(el.textContent);
         el.setAttribute('data-done','1');
+        if (window.TripJournal) window.TripJournal.enhance(el);
       });
     }
     function scrollChat(){ var c=document.getElementById('chat'); if(c){ c.scrollTop=c.scrollHeight; } }

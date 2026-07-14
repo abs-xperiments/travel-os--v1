@@ -1,64 +1,56 @@
 {% extends "base.html" %}
+{% block title %}Your profile — TripOS{% endblock %}
 {% block body %}
 <div class="mx-auto max-w-md px-4 py-10 space-y-6">
   <header class="flex items-center justify-between">
-    <span class="text-xl font-bold">👤 Your profile</span>
-    <a href="/" class="text-sm text-sky-400 hover:underline">← Back to TripOS</a>
+    <span class="font-display text-xl font-bold">Your profile</span>
+    <a href="/" class="link text-sm">← Back to TripOS</a>
   </header>
 
-  <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-5">
+  <div class="glass p-6 space-y-5">
     <div class="flex items-center gap-4">
       {% if user.avatar_url %}
       <img src="{{ user.avatar_url }}" alt="" class="h-16 w-16 rounded-full object-cover">
       {% else %}
-      <div class="flex h-16 w-16 items-center justify-center rounded-full bg-sky-600
-                  text-2xl font-bold">{{ (user.name or user.email)[:1] | upper }}</div>
+      <div class="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold"
+           style="background:var(--gold);color:var(--on-gold)">{{ (user.name or user.email)[:1] | upper }}</div>
       {% endif %}
       <div>
-        <div class="font-semibold">{{ user.name or "Traveler" }}</div>
-        <div class="text-sm text-slate-400">{{ user.email }}</div>
+        <div class="font-display text-lg font-semibold">{{ user.name or "Traveler" }}</div>
+        <div class="text-sm" style="color:var(--text-low)">{{ user.email }}</div>
       </div>
     </div>
 
     {% if saved %}
-    <div class="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">Saved ✓</div>
+    <div class="stamp gold">Saved ✓</div>
     {% endif %}
     {% if error %}
-    <div class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</div>
+    <div class="rounded-lg px-3 py-2 text-sm"
+         style="background:oklch(70% 0.17 25 / .12);color:var(--danger)">{{ error }}</div>
     {% endif %}
 
     <form method="post" action="/profile/avatar" enctype="multipart/form-data"
           class="flex items-center gap-3">
       <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" required
-        class="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0
-               file:bg-slate-800 file:px-3 file:py-1.5 file:text-sm file:text-slate-200">
-      <button type="submit"
-        class="rounded-xl border border-slate-700 px-3 py-1.5 text-sm text-slate-300
-               hover:border-sky-500 hover:text-sky-300 transition">Upload photo</button>
+        class="text-sm file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-1.5
+               file:text-sm" style="color:var(--text-low)">
+      <button type="submit" class="btn-ghost text-sm">Upload photo</button>
     </form>
 
     <form method="post" action="/profile" class="space-y-3">
-      <label class="block text-sm font-medium text-slate-200" for="name">Name</label>
+      <label class="block text-sm font-medium" for="name" style="color:var(--text-hi)">Name</label>
       <input id="name" type="text" name="name" required maxlength="80"
-        value="{{ user.name or '' }}"
-        class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100
-               focus:outline-none focus:ring-2 focus:ring-sky-500">
-      <p class="text-xs text-slate-500">Email can't be changed yet — it's how we know it's you.</p>
-      <button type="submit"
-        class="rounded-xl bg-sky-600 px-5 py-2.5 font-semibold hover:bg-sky-500 transition">
-        Save changes
-      </button>
+        value="{{ user.name or '' }}" class="field w-full px-4 py-3">
+      <p class="text-xs" style="color:var(--text-low)">
+        Email can't be changed yet — it's how we know it's you.</p>
+      <button type="submit" class="btn-primary">Save changes</button>
     </form>
   </div>
 
-  <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-3">
-    <div class="text-sm font-medium text-slate-200">Security</div>
+  <div class="glass p-6 space-y-3">
+    <div class="text-sm font-medium" style="color:var(--text-hi)">Security</div>
     <form method="post" action="/auth/logout-everywhere">
-      <button type="submit"
-        class="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300
-               hover:border-red-400 hover:text-red-300 transition">
-        Sign out of all devices
-      </button>
+      <button type="submit" class="btn-ghost text-sm">Sign out of all devices</button>
     </form>
   </div>
 </div>

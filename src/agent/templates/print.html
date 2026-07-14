@@ -4,49 +4,185 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- The <title> becomes the default filename when the user picks "Save as PDF". -->
-  <title>TripOS – {{ title or "Trip" }}</title>
+  <title>TripOS Itinerary – {{ title or "Trip" }}</title>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="/static/itinerary.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;650&display=swap"
+        rel="stylesheet">
   <style>
-    body{font-family:system-ui,-apple-system,sans-serif;max-width:760px;margin:0 auto;
-         padding:2rem;color:#0f172a;line-height:1.5}
-    h1{font-size:1.6rem;margin:0 0 .15rem}
-    .sub{color:#64748b;margin-bottom:1.5rem;font-size:.9rem}
-    .turn{margin:1.1rem 0}
-    .you{font-weight:600;color:#0369a1;font-size:.85rem;margin-bottom:.15rem}
-    .md h1,.md h2,.md h3{font-weight:700;margin:.6em 0 .3em}
-    .md h2{font-size:1.15rem}.md h3{font-size:1.02rem}
-    .md table{width:100%;border-collapse:collapse;margin:.5rem 0;font-size:.92em}
-    .md th,.md td{border:1px solid #cbd5e1;padding:.35rem .6rem;text-align:left}
-    .md ul,.md ol{padding-left:1.25rem}
-    .toolbar{margin-bottom:1.25rem;display:flex;gap:.5rem}
-    button,a.btn{font:inherit;padding:.5rem .9rem;border-radius:.5rem;border:1px solid #cbd5e1;
-      background:#f1f5f9;cursor:pointer;text-decoration:none;color:#0f172a}
-    button{background:#0284c7;color:#fff;border-color:#0284c7}
-    @media print{ .toolbar{display:none} body{padding:0;max-width:none} }
+    /* ------------------------------------------------------------------
+       A formal travel-agency document: ink on paper, editorial serif,
+       intelligent page breaks. No animations — every fact in plain sight.
+       The FINAL itinerary only; the conversation never prints.
+       ------------------------------------------------------------------ */
+    :root {
+      --paper-ink: #16182c; --paper-mid: #4b4f6b; --paper-low: #8b8fa8;
+      --paper-line: #d9dbe6; --paper-gold: #a5761c; --paper-route: #14766f;
+      --paper-wash: #f6f4ee;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: "Inter", system-ui, sans-serif; color: var(--paper-ink);
+      max-width: 780px; margin: 0 auto; padding: 2rem 1.5rem; line-height: 1.6;
+      background: #fff; }
+    .toolbar { display: flex; gap: .6rem; margin-bottom: 1.5rem; }
+    button, a.btn { font: inherit; padding: .55rem 1rem; border-radius: .6rem;
+      border: 1px solid var(--paper-line); background: #f4f5f9; cursor: pointer;
+      text-decoration: none; color: var(--paper-ink); }
+    button { background: var(--paper-gold); color: #fff; border-color: var(--paper-gold);
+      font-weight: 600; }
+
+    /* Cover */
+    .cover { border: 1px solid var(--paper-line); border-radius: 14px;
+      padding: 2.2rem 2rem 1.8rem; background: var(--paper-wash);
+      text-align: center; margin-bottom: 1.6rem; }
+    .cover .brand { font-size: .72rem; font-weight: 700; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--paper-gold); }
+    .cover h1 { font-family: "Fraunces", Georgia, serif; font-weight: 700;
+      font-size: 2rem; margin: .5rem 0 .3rem; line-height: 1.2; }
+    .cover .meta { color: var(--paper-mid); font-size: .9rem; }
+    .cover .rule { height: 1px; margin: 1.1rem auto 0; max-width: 220px;
+      background: repeating-linear-gradient(90deg, var(--paper-line) 0 7px, transparent 7px 14px);
+      position: relative; }
+    .cover .rule::before, .cover .rule::after { content: ""; position: absolute;
+      top: -3px; width: 7px; height: 7px; border-radius: 999px; }
+    .cover .rule::before { left: 0; background: var(--paper-gold); }
+    .cover .rule::after { right: 0; background: var(--paper-route); }
+
+    /* Journal structure, print-formalized (classes come from itinerary.js) */
+    .journal { display: block; }
+    .journal > * { animation: none !important; }
+    .j-hero { border: none; background: none; padding: 0 0 .8rem; }
+    .j-kicker { font-size: .7rem; font-weight: 700; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--paper-route); }
+    .j-title { display: none; }             /* the cover already carries the title */
+    .j-sub { color: var(--paper-mid); font-size: .95rem; }
+    .j-route-line { display: none; }
+    .j-nav { display: none; }               /* interactive navigator: meaningless on paper */
+
+    .j-day { position: relative; border: 1px solid var(--paper-line);
+      border-radius: 12px; padding: 1rem 1.2rem 1.1rem 3.2rem; margin: .9rem 0;
+      break-inside: avoid; page-break-inside: avoid; }
+    .j-day-badge { position: absolute; left: .85rem; top: 1rem; width: 1.5rem;
+      height: 1.5rem; border-radius: 999px; background: var(--paper-gold);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: .72rem; font-weight: 800; }
+    .j-day-head { font-family: "Fraunces", Georgia, serif; font-weight: 600;
+      font-size: 1.12rem; margin: 0 0 .2rem; }
+    .j-day-label { display: block; font-family: "Inter", sans-serif; font-size: .66rem;
+      font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--paper-gold); margin-bottom: .1rem; }
+    .j-tod { font-size: .72rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--paper-route); }
+
+    .j-section { border: 1px solid var(--paper-line); border-radius: 12px;
+      padding: 1rem 1.2rem; margin: .9rem 0; break-inside: avoid;
+      page-break-inside: avoid; background: var(--paper-wash); }
+    .j-section-head { font-family: "Fraunces", Georgia, serif; font-weight: 600;
+      font-size: 1.05rem; margin: 0 0 .3rem; display: flex; gap: .5rem;
+      align-items: center; }
+    .stamp { display: inline-flex; border: 1.5px solid var(--paper-route);
+      color: var(--paper-route); border-radius: .5rem; padding: .1rem .5rem;
+      font-size: .62rem; font-weight: 700; letter-spacing: .09em;
+      text-transform: uppercase; transform: rotate(-1.5deg); }
+    .j-footer { border-top: 1px solid var(--paper-line); margin-top: 1.4rem;
+      padding-top: .8rem; color: var(--paper-low); font-size: .8rem;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+    .j-footer .btn-ghost { display: none; }  /* no interactive buttons on paper */
+
+    /* Markdown inside the document */
+    .md h1, .md h2, .md h3 { font-family: "Fraunces", Georgia, serif;
+      font-weight: 600; margin: .7em 0 .3em; }
+    .md h2 { font-size: 1.15rem; } .md h3 { font-size: 1.02rem; }
+    .md p { margin: .4em 0; }
+    .md ul, .md ol { margin: .4em 0; padding-left: 1.3rem; }
+    .md li { margin: .15em 0; }
+    .md strong { color: var(--paper-gold); }
+    .md table { width: 100%; border-collapse: collapse; margin: .6rem 0;
+      font-size: .9em; break-inside: avoid; }
+    .md th { font-size: .7em; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--paper-mid); }
+    .md th, .md td { border-bottom: 1px solid var(--paper-line);
+      padding: .4rem .6rem; text-align: left; }
+    .md blockquote { border-left: 3px solid var(--paper-gold); margin: .6em 0;
+      padding: .2em 0 .2em .9em; color: var(--paper-mid); font-style: italic; }
+    .md a { color: var(--paper-route); }
+    .md hr { border: none; height: 1px;
+      background: repeating-linear-gradient(90deg, var(--paper-line) 0 7px, transparent 7px 14px); }
+
+    #source, #fallback-note { display: none; }
+    .note { border: 1px dashed var(--paper-line); border-radius: 10px;
+      padding: .8rem 1rem; color: var(--paper-mid); font-size: .88rem;
+      margin-bottom: 1rem; }
+
+    @media print {
+      .toolbar, .note.screen-only { display: none; }
+      body { padding: 0; max-width: none; }
+      .cover { border: none; background: var(--paper-wash);
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .j-day-badge, .stamp, .md strong, .j-day-label, .j-tod, .j-kicker {
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 14mm; }
+    }
   </style>
 </head>
 <body>
   <div class="toolbar">
-    <button onclick="window.print()">📄 Save as PDF</button>
-    <a class="btn" href="/trip/{{ trip_id }}">← Back to chat</a>
+    <button onclick="window.print()">Save as PDF</button>
+    <a class="btn" href="/trip/{{ trip_id }}">← Back to your trip</a>
   </div>
 
-  <h1>✈️ {{ title or "Your TripOS plan" }}</h1>
-  <div class="sub">Planned with TripOS · prices are estimates, not booked quotes</div>
+  <header class="cover">
+    <div class="brand">TripOS · Travel Itinerary</div>
+    <h1>{{ title or "Your journey" }}</h1>
+    <div class="meta">Prepared <span id="prepared-date"></span> · prices are estimates, not booked quotes</div>
+    <div class="rule" aria-hidden="true"></div>
+  </header>
 
-  {% for m in transcript %}
-    {% if m.role == "user" %}
-    <div class="turn"><div class="you">You asked</div><div>{{ m.content }}</div></div>
-    {% else %}
-    <div class="turn"><div class="md" data-md>{{ m.content }}</div></div>
-    {% endif %}
-  {% endfor %}
+  <div id="fallback-note" class="note screen-only">
+    This trip doesn't have a finished day-by-day itinerary yet — showing the latest plan
+    notes instead. Ask TripOS to build your full itinerary, then export again.
+  </div>
+
+  <main id="document"></main>
+
+  <!-- The raw assistant turns (markdown in text nodes). The conversation itself is never
+       shown or printed: JS picks the LATEST reply that is a complete itinerary. -->
+  <div id="source" aria-hidden="true">
+    {% for m in transcript %}{% if m.role != "user" %}<div class="src-md">{{ m.content }}</div>{% endif %}{% endfor %}
+  </div>
 
   <script>
-    // Render the assistant's markdown (its text sits safely in a text node until now).
-    document.querySelectorAll('.md[data-md]').forEach(function(el){
-      el.innerHTML = marked.parse(el.textContent);
-    });
+    (function () {
+      document.getElementById('prepared-date').textContent =
+        new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      var sources = Array.prototype.slice.call(document.querySelectorAll('#source .src-md'));
+      var docEl = document.getElementById('document');
+
+      // Render each assistant turn off-screen, then keep only the LAST full itinerary.
+      var chosen = null, fallback = null;
+      sources.forEach(function (s) {
+        var el = document.createElement('div');
+        el.className = 'md';
+        el.innerHTML = marked.parse(s.textContent);
+        fallback = el;                        // most recent reply, whatever it is
+        if (window.TripJournal) {
+          window.TripJournal.enhance(el);     // becomes a .journal only if it IS an itinerary
+          if (el.dataset.journal) chosen = el;
+        }
+      });
+
+      if (chosen) {
+        docEl.appendChild(chosen);
+      } else if (fallback) {
+        document.getElementById('fallback-note').style.display = 'block';
+        docEl.appendChild(fallback);
+      } else {
+        docEl.innerHTML = '<p class="note">Nothing to export yet — plan a trip first.</p>';
+      }
+    })();
   </script>
 </body>
 </html>

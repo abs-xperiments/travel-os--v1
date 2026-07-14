@@ -1,0 +1,149 @@
+/* ============================================================================
+   TravelOS — the Travel Journal
+   Presentation of a finished itinerary: hero cover, day chapters on a route
+   spine, closing spreads. Applied by itinerary.js AFTER generation completes;
+   the planner's markdown is the sole source of truth — nothing is lost.
+   ========================================================================== */
+
+.journal { display: flex; flex-direction: column; gap: .9rem; }
+
+/* --- Cover ---------------------------------------------------------------- */
+.j-hero {
+  position: relative; overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  padding: 1.6rem 1.5rem 1.4rem;
+  background:
+    radial-gradient(120% 90% at 50% 115%, var(--horizon-glow), transparent 60%),
+    linear-gradient(180deg,
+      color-mix(in oklab, var(--ink-900) 88%, transparent),
+      color-mix(in oklab, var(--ink-950) 92%, transparent));
+}
+.j-hero .j-kicker {
+  font-size: .7rem; font-weight: 700; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--route);
+}
+.j-hero .j-title {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 1.7rem; line-height: 1.2; margin-top: .35rem;
+  color: var(--text-hi);
+}
+.j-hero .j-sub { margin-top: .5rem; color: var(--text-mid); font-size: .92rem; }
+.j-hero .j-route-line {
+  margin-top: 1rem; height: 1px;
+  background: repeating-linear-gradient(90deg, var(--line) 0 7px, transparent 7px 14px);
+  position: relative;
+}
+.j-hero .j-route-line::before, .j-hero .j-route-line::after {
+  content: ""; position: absolute; top: -3px; width: 7px; height: 7px;
+  border-radius: 999px; background: var(--gold);
+}
+.j-hero .j-route-line::after { right: 0; background: var(--route); }
+
+/* --- Day chapters on the route spine -------------------------------------- */
+.j-day {
+  position: relative;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--glass);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  padding: 1.1rem 1.2rem 1.2rem 3.4rem;
+}
+.j-day::before { /* the route spine */
+  content: ""; position: absolute; left: 1.55rem; top: 3.2rem; bottom: 1rem;
+  width: 1px;
+  background: repeating-linear-gradient(180deg, var(--line) 0 6px, transparent 6px 12px);
+}
+.j-day-badge {
+  position: absolute; left: .85rem; top: 1.05rem;
+  width: 1.5rem; height: 1.5rem; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold); color: var(--on-gold);
+  font-size: .72rem; font-weight: 800;
+}
+.j-day-head {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 1.14rem; color: var(--text-hi);
+  margin-bottom: .15rem;
+}
+.j-day-head .j-day-label {
+  display: block; font-family: var(--font-ui); font-size: .68rem;
+  font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: .15rem;
+}
+.j-day .md, .j-day-body { font-size: .95rem; }
+
+/* Time-of-day markers inside a chapter (Morning / Afternoon / Evening) */
+.j-day .md strong:first-child { color: var(--gold); }
+.j-tod {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--route);
+  margin-top: .5rem;
+}
+
+/* --- Closing spreads (budget, tips, notes) --------------------------------- */
+.j-section {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--glass);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  padding: 1.1rem 1.2rem;
+}
+.j-section-head {
+  display: flex; align-items: center; gap: .6rem;
+  font-family: var(--font-display); font-weight: 600; font-size: 1.08rem;
+  margin-bottom: .35rem;
+}
+.j-section-head .stamp { font-size: .62rem; }
+
+/* --- Sticky day navigator --------------------------------------------------*/
+.j-nav {
+  position: sticky; top: .5rem; z-index: 20;
+  display: flex; gap: .45rem; overflow-x: auto;
+  padding: .45rem; margin: 0 -0.25rem;
+  background: color-mix(in oklab, var(--ink-950) 70%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--line-soft); border-radius: 999px;
+  scrollbar-width: none;
+}
+.j-nav::-webkit-scrollbar { display: none; }
+.j-nav a {
+  flex: none; font-size: .78rem; font-weight: 600;
+  padding: .3rem .8rem; border-radius: 999px;
+  color: var(--text-mid); border: 1px solid transparent;
+  transition: all var(--t-fast) var(--ease);
+}
+.j-nav a:hover, .j-nav a.here {
+  color: var(--gold); border-color: var(--gold); background: var(--gold-soft);
+}
+
+/* --- Journal footer (actions) ---------------------------------------------*/
+.j-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .8rem; flex-wrap: wrap;
+  padding: .9rem 1.1rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--text-mid); font-size: .88rem;
+}
+
+/* --- The reveal ------------------------------------------------------------*/
+@keyframes j-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.journal > * { animation: j-in var(--t-slow) var(--ease) backwards; }
+.journal > *:nth-child(1) { animation-delay: 40ms; }
+.journal > *:nth-child(2) { animation-delay: 110ms; }
+.journal > *:nth-child(3) { animation-delay: 180ms; }
+.journal > *:nth-child(4) { animation-delay: 250ms; }
+.journal > *:nth-child(n+5) { animation-delay: 320ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .journal > * { animation: none; }
+}
+
+/* Inside a journal, the bubble chrome disappears — it's a document, not a chat. */
+.bubble-bot:has(> .journal) {
+  background: transparent; border: none; backdrop-filter: none;
+  -webkit-backdrop-filter: none; padding: 0; max-width: 100% !important;
+  box-shadow: none;
+}

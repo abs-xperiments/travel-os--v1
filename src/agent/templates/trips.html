@@ -1,25 +1,36 @@
 {% extends "base.html" %}
+{% block title %}My Journeys — TripOS{% endblock %}
 {% block content %}
-<div class="flex items-center justify-between">
-  <h1 class="text-3xl font-bold">🧳 Saved trips</h1>
-  <a href="/" class="text-sm text-sky-400 hover:underline">← Back to chat</a>
+<div class="flex items-end justify-between">
+  <div>
+    <h1 class="font-display text-3xl font-semibold">My Journeys</h1>
+    <p class="mt-1 text-sm" style="color:var(--text-mid)">Your travel shelf — every plan, kept.</p>
+  </div>
+  <a href="/" class="link text-sm">← Back to planning</a>
 </div>
 
+<div class="route-divider"></div>
+
 {% if trips %}
-<ul class="mt-6 space-y-2">
+<ul class="mt-4 space-y-3">
   {% for t in trips %}
-  <li class="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 hover:border-sky-600 transition">
+  <li class="glass flex items-center gap-4 px-5 py-4 transition hover:-translate-y-0.5">
+    <span class="stamp" aria-hidden="true">Trip</span>
     <a href="/trip/{{ t.id }}" class="min-w-0 flex-1">
-      <div class="truncate font-medium">{{ t.title or "Untitled trip" }}</div>
+      <div class="truncate font-display text-lg font-semibold">{{ t.title or "Untitled journey" }}</div>
       {% if t.updated_at %}
-      <div class="text-xs text-slate-500">{{ t.updated_at.strftime("%d %b %Y, %H:%M") }}</div>
+      <div class="text-xs" style="color:var(--text-low)">{{ t.updated_at.strftime("%d %b %Y, %H:%M") }}</div>
       {% endif %}
     </a>
-    <a href="/trip/{{ t.id }}/print" class="shrink-0 text-sm text-sky-400 hover:underline">📄 PDF</a>
+    <a href="/trip/{{ t.id }}/print" class="link shrink-0 text-sm">Download PDF</a>
   </li>
   {% endfor %}
 </ul>
 {% else %}
-<p class="mt-6 text-slate-400">No saved trips yet. <a href="/" class="text-sky-400 hover:underline">Plan one →</a></p>
+<div class="glass mt-6 px-6 py-10 text-center">
+  <div class="font-display text-xl">No journeys yet</div>
+  <p class="mt-2 text-sm" style="color:var(--text-mid)">The world is patient. It'll wait for you.</p>
+  <a href="/" class="btn-primary mt-5 inline-block">Plan your first trip</a>
+</div>
 {% endif %}
 {% endblock %}

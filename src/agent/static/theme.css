@@ -1,0 +1,364 @@
+/* ============================================================================
+   TravelOS — "Golden Hour Atlas" design system
+   Packaging Studio · tokens + base components + living-world atmosphere.
+   Presentation layer only. Consumed alongside Tailwind CDN utilities; tokens
+   are the single source of truth — components reference vars, never raw hex.
+   ========================================================================== */
+
+/* ----------------------------------------------------------------- tokens */
+:root {
+  /* Ink — the night-navy ground the world sits on (warm, not slate-gray) */
+  --ink-950: oklch(14% 0.028 268);
+  --ink-900: oklch(17% 0.03 266);
+  --ink-800: oklch(22% 0.032 264);
+  --ink-700: oklch(30% 0.03 262);
+  --ink-600: oklch(40% 0.025 260);
+
+  /* Text — warm whites (never pure #fff: softer on dark, feels printed) */
+  --text-hi:  oklch(96% 0.012 85);
+  --text-mid: oklch(78% 0.02 80);
+  --text-low: oklch(62% 0.02 78);
+
+  /* Brand accents — golden hour */
+  --gold:       oklch(80% 0.13 78);   /* primary CTA — sunset gold */
+  --gold-soft:  oklch(80% 0.13 78 / 0.14);
+  --ember:      oklch(70% 0.15 48);   /* warm secondary */
+  --skyblue:    oklch(76% 0.09 235);  /* links, cool counterpoint */
+  --route:      oklch(74% 0.10 185);  /* route-line teal */
+  --success:    oklch(76% 0.13 160);
+  --danger:     oklch(70% 0.17 25);
+  --on-gold:    oklch(20% 0.04 75);   /* text on gold — AA on --gold */
+
+  /* Surfaces */
+  --glass:      color-mix(in oklab, var(--ink-900) 72%, transparent);
+  --glass-hi:   color-mix(in oklab, var(--ink-800) 80%, transparent);
+  --line:       oklch(35% 0.03 265 / 0.55);
+  --line-soft:  oklch(35% 0.03 265 / 0.3);
+
+  /* Type */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-ui: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Motion — Linear-school: quick, confident, never bouncy */
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --t-fast: 140ms;
+  --t-med: 240ms;
+  --t-slow: 480ms;
+
+  /* Rhythm */
+  --radius: 1rem;
+  --radius-lg: 1.4rem;
+  --shadow-soft: 0 8px 30px oklch(10% 0.03 268 / 0.45);
+
+  /* Sky — defaults (dusk); JS keys data-sky to local time */
+  --sky-top: oklch(23% 0.06 275);
+  --sky-mid: oklch(32% 0.08 300);
+  --sky-low: oklch(62% 0.13 55);
+  --horizon-glow: oklch(72% 0.15 60 / 0.35);
+  --star-op: 0.5;
+}
+
+html[data-sky="dawn"] {
+  --sky-top: oklch(45% 0.06 260);
+  --sky-mid: oklch(68% 0.09 320);
+  --sky-low: oklch(80% 0.11 60);
+  --horizon-glow: oklch(85% 0.12 70 / 0.4);
+  --star-op: 0.12;
+}
+html[data-sky="day"] {
+  --sky-top: oklch(55% 0.09 245);
+  --sky-mid: oklch(72% 0.08 235);
+  --sky-low: oklch(86% 0.06 210);
+  --horizon-glow: oklch(90% 0.05 200 / 0.3);
+  --star-op: 0;
+}
+html[data-sky="night"] {
+  --sky-top: oklch(13% 0.035 270);
+  --sky-mid: oklch(17% 0.05 280);
+  --sky-low: oklch(30% 0.07 310);
+  --horizon-glow: oklch(45% 0.09 320 / 0.28);
+  --star-op: 0.9;
+}
+
+/* ------------------------------------------------------------------- base */
+body {
+  font-family: var(--font-ui);
+  background: var(--ink-950);
+  color: var(--text-hi);
+  -webkit-font-smoothing: antialiased;
+}
+.font-display { font-family: var(--font-display); }
+
+::selection { background: var(--gold-soft); color: var(--text-hi); }
+
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  background: var(--gold); color: var(--on-gold);
+  padding: .5rem 1rem; border-radius: 0 0 .5rem 0; font-weight: 600;
+}
+.skip-link:focus { left: 0; }
+
+/* ------------------------------------------------- the living world layer */
+#world {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden;
+  background: linear-gradient(180deg,
+    var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
+  transition: background 1.2s var(--ease);
+}
+#world::after { /* horizon glow — the golden hour itself */
+  content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 42vh;
+  background: radial-gradient(60% 55% at 50% 100%, var(--horizon-glow), transparent 70%);
+}
+
+.w-stars {
+  position: absolute; inset: 0 0 30% 0; opacity: var(--star-op);
+  transition: opacity 1.2s var(--ease);
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 22%, #fff 60%, transparent),
+    radial-gradient(1px 1px at 28% 8%,  #fff 60%, transparent),
+    radial-gradient(1.6px 1.6px at 41% 31%, #ffeecf 60%, transparent),
+    radial-gradient(1px 1px at 57% 12%, #fff 60%, transparent),
+    radial-gradient(1.3px 1.3px at 66% 26%, #fff 60%, transparent),
+    radial-gradient(1px 1px at 78% 6%,  #ffeecf 60%, transparent),
+    radial-gradient(1.5px 1.5px at 87% 19%, #fff 60%, transparent),
+    radial-gradient(1px 1px at 95% 34%, #fff 60%, transparent),
+    radial-gradient(1.2px 1.2px at 5% 44%,  #fff 60%, transparent),
+    radial-gradient(1px 1px at 48% 47%, #ffeecf 60%, transparent);
+  animation: w-twinkle 7s ease-in-out infinite alternate;
+}
+@keyframes w-twinkle { to { opacity: calc(var(--star-op) * 0.55); } }
+
+.w-clouds, .w-clouds-far {
+  position: absolute; inset-inline: -60%; height: 34vh; top: 6vh;
+  background-repeat: repeat-x; background-size: 900px 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 240'%3E%3Cg fill='%23ffffff' fill-opacity='.05'%3E%3Cellipse cx='140' cy='90' rx='130' ry='34'/%3E%3Cellipse cx='240' cy='70' rx='90' ry='26'/%3E%3Cellipse cx='560' cy='140' rx='150' ry='30'/%3E%3Cellipse cx='680' cy='115' rx='90' ry='22'/%3E%3Cellipse cx='840' cy='60' rx='110' ry='26'/%3E%3C/g%3E%3C/svg%3E");
+  animation: w-drift 240s linear infinite;
+}
+.w-clouds-far {
+  top: 2vh; opacity: .6; background-size: 1300px 100%;
+  animation-duration: 420s; animation-direction: reverse;
+}
+@keyframes w-drift { to { transform: translateX(900px); } }
+
+.w-terrain, .w-terrain-far {
+  position: absolute; inset-inline: 0; bottom: 0; height: 26vh;
+  background-repeat: repeat-x; background-position: bottom;
+  background-size: 1400px 100%;
+}
+.w-terrain-far {
+  height: 32vh; opacity: .55;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 320' preserveAspectRatio='none'%3E%3Cpath d='M0 320V210l90-70 110 60 130-110 150 90 120-50 160 80 140-120 130 95 120-45 130 70 120-60v170z' fill='%23131629'/%3E%3C/svg%3E");
+}
+.w-terrain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 260' preserveAspectRatio='none'%3E%3Cpath d='M0 260V170l120-55 100 40 150-85 170 75 110-35 180 65 150-90 140 70 130-40 150 55v100z' fill='%230c0f1f'/%3E%3C/svg%3E");
+}
+
+/* A tiny airplane crosses high in the sky, rarely — the passing-journey moment. */
+.w-plane {
+  position: absolute; top: 12vh; left: -6%;
+  width: 34px; height: 34px; opacity: 0;
+  animation: w-fly 150s linear infinite;
+  animation-delay: 14s;
+}
+.w-plane svg { width: 100%; height: 100%; fill: oklch(88% 0.02 85 / 0.8); }
+.w-plane::after { /* contrail */
+  content: ""; position: absolute; right: 100%; top: 52%; height: 1.5px; width: 20vw;
+  background: linear-gradient(270deg, oklch(95% 0.01 85 / 0.4), transparent);
+}
+@keyframes w-fly {
+  0%    { transform: translateX(0) translateY(0); opacity: 0; }
+  0.3%  { opacity: .9; }
+  5.7%  { opacity: .9; }
+  6%    { transform: translateX(112vw) translateY(-5vh); opacity: 0; }
+  100%  { transform: translateX(112vw) translateY(-5vh); opacity: 0; }
+}
+
+/* Shooting star — night only, once in a while, gone in a blink. */
+.w-shooting {
+  position: absolute; top: 8vh; left: 68%;
+  width: 90px; height: 2px; opacity: 0;
+  background: linear-gradient(90deg, #fff, transparent);
+  border-radius: 2px; transform: rotate(-28deg);
+  animation: w-shoot 47s linear infinite; animation-delay: 9s;
+}
+html:not([data-sky="night"]) .w-shooting { display: none; }
+@keyframes w-shoot {
+  0%   { transform: translate(0,0) rotate(-28deg); opacity: 0; }
+  0.4% { opacity: .9; }
+  1.6% { transform: translate(-190px, 100px) rotate(-28deg); opacity: 0; }
+  100% { transform: translate(-190px, 100px) rotate(-28deg); opacity: 0; }
+}
+
+/* The app floats above the world. */
+.above-world { position: relative; z-index: 10; }
+
+/* ------------------------------------------------------------- components */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--line-soft);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+.glass-hi { background: var(--glass-hi); }
+
+.btn-primary {
+  background: var(--gold); color: var(--on-gold);
+  font-weight: 650; border-radius: var(--radius);
+  padding: .75rem 1.35rem;
+  transition: transform var(--t-fast) var(--ease), filter var(--t-fast) var(--ease),
+              box-shadow var(--t-fast) var(--ease);
+  box-shadow: 0 4px 18px oklch(80% 0.13 78 / 0.22);
+}
+.btn-primary:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0) scale(.985); }
+
+.btn-ghost {
+  border: 1px solid var(--line); color: var(--text-mid);
+  border-radius: var(--radius); padding: .6rem 1.1rem;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+              background var(--t-fast) var(--ease);
+}
+.btn-ghost:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-soft); }
+
+.link { color: var(--skyblue); transition: color var(--t-fast) var(--ease); }
+.link:hover { color: var(--gold); }
+
+.field {
+  background: color-mix(in oklab, var(--ink-950) 85%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--text-hi);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.field::placeholder { color: var(--text-low); }
+.field:focus { outline: none; border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-soft); }
+
+/* Boarding-pass chip: a small ticket with a perforated notch. */
+.ticket {
+  position: relative; border: 1px solid var(--line);
+  background: var(--glass); color: var(--text-mid);
+  border-radius: .65rem; padding: .42rem .9rem .42rem 1.25rem;
+  font-size: .85rem; line-height: 1.2;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+              transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.ticket::before {
+  content: ""; position: absolute; left: .55rem; top: 50%;
+  width: 5px; height: 5px; border-radius: 999px;
+  transform: translateY(-50%);
+  background: var(--route); opacity: .8;
+}
+.ticket:hover { color: var(--gold); border-color: var(--gold);
+  background: var(--gold-soft); transform: translateY(-1px); }
+.ticket[aria-pressed="true"], .ticket.on {
+  color: var(--gold); border-color: var(--gold); background: var(--gold-soft);
+}
+
+/* Passport stamp — for statuses, saved marks, badges. */
+.stamp {
+  display: inline-flex; align-items: center; gap: .4rem;
+  border: 1.5px solid var(--route); color: var(--route);
+  border-radius: .55rem; padding: .18rem .6rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; transform: rotate(-1.5deg);
+}
+.stamp.gold { border-color: var(--gold); color: var(--gold); }
+
+/* Route-line divider: a dashed journey with a moving spark. */
+.route-divider {
+  position: relative; height: 1px; margin: 1.4rem 0;
+  background: repeating-linear-gradient(90deg,
+    var(--line) 0 7px, transparent 7px 14px);
+}
+.route-divider::after {
+  content: ""; position: absolute; top: -2.5px; left: 0;
+  width: 6px; height: 6px; border-radius: 999px; background: var(--gold);
+  animation: route-run 6s var(--ease) infinite;
+  opacity: .9;
+}
+@keyframes route-run { 0% { left: 0 } 50% { left: calc(100% - 6px) } 100% { left: 0 } }
+
+/* Chat bubbles */
+.bubble-user {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--gold) 88%, white 0%),
+    color-mix(in oklab, var(--ember) 80%, var(--gold) 20%));
+  color: var(--on-gold); border-radius: 1.15rem 1.15rem .3rem 1.15rem;
+  padding: .8rem 1.05rem;
+}
+.bubble-bot {
+  background: var(--glass); border: 1px solid var(--line-soft);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-radius: 1.15rem 1.15rem 1.15rem .3rem;
+  padding: .9rem 1.1rem;
+}
+.bubble-note {
+  background: color-mix(in oklab, var(--ink-900) 55%, transparent);
+  border: 1px dashed var(--line-soft);
+  border-radius: 1rem; color: var(--text-low); font-size: .86rem;
+}
+
+/* Progress checkpoint (tool status) gets a pulsing route dot */
+.checkpoint { display: flex; align-items: baseline; gap: .55rem; }
+.checkpoint::before {
+  content: ""; flex: none; width: 8px; height: 8px; border-radius: 999px;
+  background: var(--route); align-self: center;
+  animation: pulse-dot 1.6s var(--ease) infinite;
+}
+@keyframes pulse-dot { 50% { transform: scale(1.5); opacity: .5 } }
+
+/* Reveal-on-scroll (used by journal + cards) */
+.reveal { opacity: 0; transform: translateY(14px);
+  transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease); }
+.reveal.in { opacity: 1; transform: none; }
+
+/* Markdown inside bot bubbles (upgraded from base.html's minimal set) */
+.md { line-height: 1.65; color: var(--text-hi); }
+.md h1, .md h2, .md h3 { font-family: var(--font-display); font-weight: 600;
+  margin: .8em 0 .35em; letter-spacing: .01em; }
+.md h1 { font-size: 1.45rem; } .md h2 { font-size: 1.22rem; } .md h3 { font-size: 1.05rem; }
+.md p { margin: .45em 0; }
+.md ul, .md ol { margin: .45em 0; padding-left: 1.3em; list-style: revert; }
+.md li { margin: .18em 0; }
+.md strong { color: var(--gold); font-weight: 650; }
+.md a { color: var(--skyblue); text-decoration: underline; text-underline-offset: 2px; }
+.md a:hover { color: var(--gold); }
+.md code { background: var(--ink-800); padding: .1em .4em; border-radius: .35em;
+  font-size: .9em; }
+.md table { width: 100%; border-collapse: collapse; margin: .6em 0; font-size: .9em; }
+.md th { font-family: var(--font-ui); font-weight: 600; color: var(--text-mid);
+  text-transform: uppercase; font-size: .72em; letter-spacing: .08em; }
+.md th, .md td { border-bottom: 1px solid var(--line-soft); padding: .45em .6em;
+  text-align: left; }
+.md tr:last-child td { border-bottom: none; }
+.md blockquote { border-left: 3px solid var(--gold); margin: .6em 0;
+  padding: .2em 0 .2em .9em; color: var(--text-mid); font-style: italic; }
+.md hr { border: none; height: 1px; margin: 1rem 0;
+  background: repeating-linear-gradient(90deg, var(--line) 0 7px, transparent 7px 14px); }
+
+/* The departure moment: on send, the plane on the button lifts off. */
+@keyframes depart {
+  0%   { transform: translate(0, 0) rotate(0); }
+  45%  { transform: translate(9px, -7px) rotate(-14deg); opacity: 0; }
+  46%  { transform: translate(-10px, 8px) rotate(-14deg); opacity: 0; }
+  100% { transform: translate(0, 0) rotate(0); opacity: 1; }
+}
+.departing svg { animation: depart .55s var(--ease); }
+
+/* -------------------------------------------------------- reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .w-clouds, .w-clouds-far, .w-stars, .w-plane, .w-shooting,
+  .route-divider::after, .checkpoint::before { animation: none !important; }
+  .w-plane, .w-shooting { display: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  * { transition-duration: 1ms !important; }
+}
