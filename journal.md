@@ -943,3 +943,37 @@ PDF export → living world/sound → perf+a11y launch sweep). Key decisions rec
 packaging/brain/decisions.md: no React/Next rewrite (keep buildless FastAPI/Jinja/HTMX;
 Three.js/GSAP via CDN if needed), and itinerary presentation via client-side markdown
 parsing with graceful fallback. Next: Phase 2 design vision → user approval gate before any code.
+
+## 2026-07-15 13:00 — Packaging phases 2–6: Golden Hour Atlas shipped to the packaging branch
+Executed the packaging roadmap autonomously (user mandate). Phase 2: experience strategy +
+100-idea backlog (packaging/phase-2-experience-strategy.md). Phase 3: design system as CSS
+tokens in static/theme.css — OKLCH palette keyed to the user's local hour, Fraunces/Inter,
+glass components, route-line/stamp motifs, all reduced-motion safe. Phase 4: living-world
+shell (CSS sky, clouds, stars, terrain, a rare passing plane) + every template reskinned;
+the chat's SSE reader and questionnaire renderer logic were kept byte-identical — only class
+strings and copy changed. Phase 5: static/itinerary.js transforms a FINISHED itinerary's
+rendered markdown into a travel journal (cover, day chapters, sticky day nav, budget/tips
+spreads); it builds from a clone and swaps only on success, so fallback to plain markdown is
+guaranteed; day-detection regex has a 12-case node test. Phase 6: print.html is now a formal
+A4 document that exports ONLY the latest reply that parses as a complete itinerary — the
+conversation never prints; page-break rules keep days intact. Also fixed a real deploy trap:
+sw.js cached /static/ cache-first forever, which would have pinned the old theme on installed
+PWAs — bumped to tripos-v2 with stale-while-revalidate. Sandbox couldn't run the live app
+(darwin .venv, prod DB) — validated via Jinja template compilation, node --check, the DAY_RE
+test, and packaging/preview.html (opens locally, renders the real theme + journal transform
+on a realistic Kerala itinerary). NOT done: sound (needs sourced assets — shipping synth
+audio would cheapen the brand), WebGL world v2, Lighthouse/axe live audits — see ROADMAP
+phases 7–8. Git note: a stale .git/HEAD.lock (sandbox can't unlink on this mount) blocked
+commits after the first one; packaging/commit-phases.sh carries the prepared commit.
+
+## 2026-07-15 14:00 — Phases 7–8 (static): delight sweep + programmatic a11y audit
+Phase 7 shipped the small moments: a time-of-day salutation over the empty-state hero, a
+placeholder that wanders destinations while idle, a "departure" animation on the send
+button's plane, and a 15fps throttle on streaming markdown re-parses (identical output,
+much less main-thread work on long itineraries). Phase 8's sandbox-runnable half is done:
+a programmatic OKLCH→WCAG contrast audit passes all 13 token pairs at AA (most at AAA),
+and all templates/JS/manifest validate. What CANNOT be done from the sandbox: running the
+live app (darwin .venv + prod DB), Lighthouse/axe against a running instance, and the
+Railway deploy — these are in packaging/SETUP-GUIDE.md for the founder; after deploy I can
+verify the production site via the Claude Chrome extension. Sound and WebGL world v2 stay
+deferred by decision (assets/perf), recorded in ROADMAP + decisions.md.

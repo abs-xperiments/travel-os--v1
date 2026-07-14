@@ -1,0 +1,133 @@
+<!doctype html>
+<!-- Packaging Studio design preview — open directly in a browser (uses the app's real
+     theme.css / journal.css / itinerary.js via relative paths + marked from CDN).
+     This file is QA collateral only; it ships nothing and is never served by the app. -->
+<html lang="en" data-sky="dusk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TripOS — Golden Hour Atlas preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;650&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="../src/agent/static/theme.css">
+<link rel="stylesheet" href="../src/agent/static/journal.css">
+<style>
+  .wrap { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 6rem; }
+  h2.demo { font-family: var(--font-display); font-size: 1.3rem; margin: 2.2rem 0 .8rem; }
+  .sky-switch { position: fixed; top: .8rem; right: .8rem; z-index: 50; display: flex; gap: .4rem; }
+</style>
+</head>
+<body class="antialiased">
+<div id="world" aria-hidden="true">
+  <div class="w-stars"></div><div class="w-clouds-far"></div><div class="w-clouds"></div>
+  <div class="w-shooting"></div>
+  <div class="w-plane"><svg viewBox="0 0 24 24"><path d="M21.5 15.5 13 11V4.75a1.25 1.25 0 0 0-2.5 0V11l-8.5 4.5v2l8.5-2.5v4.6l-2.3 1.6v1.3l3.55-1 3.55 1v-1.3l-2.3-1.6v-4.6l8.5 2.5v-2Z"/></svg></div>
+  <div class="w-terrain-far"></div><div class="w-terrain"></div>
+</div>
+<div class="sky-switch above-world">
+  <button class="ticket" onclick="document.documentElement.dataset.sky='dawn'">dawn</button>
+  <button class="ticket" onclick="document.documentElement.dataset.sky='day'">day</button>
+  <button class="ticket" onclick="document.documentElement.dataset.sky='dusk'">dusk</button>
+  <button class="ticket" onclick="document.documentElement.dataset.sky='night'">night</button>
+</div>
+<div class="wrap above-world">
+  <div class="text-center" style="margin-bottom:2rem">
+    <div class="font-display" style="font-size:2.2rem;font-weight:700">Trip<span style="color:var(--gold)">OS</span></div>
+    <div style="color:var(--text-mid);font-size:.9rem">Golden Hour Atlas — design preview</div>
+  </div>
+
+  <h2 class="demo">Components</h2>
+  <div class="glass" style="padding:1.2rem;display:flex;flex-wrap:wrap;gap:.7rem;align-items:center">
+    <button class="btn-primary">Depart</button>
+    <button class="btn-ghost">Secondary</button>
+    <button class="ticket">Plan a 5-day trip to Kerala</button>
+    <button class="ticket on">Build an 8-day Japan itinerary</button>
+    <span class="stamp">Trip</span><span class="stamp gold">Saved ✓</span>
+    <input class="field" style="padding:.6rem 1rem" placeholder="Where to next?">
+  </div>
+  <div class="route-divider"></div>
+  <div class="checkpoint bubble-note" style="padding:.5rem 1rem;max-width:24rem">Mapping out route options…</div>
+
+  <h2 class="demo">Chat bubbles</h2>
+  <div class="flex" style="display:flex;justify-content:flex-end;margin-bottom:.8rem">
+    <div class="bubble-user" style="max-width:85%">Plan 5 days in Kerala for two, ₹40,000 per person, we love nature and food.</div>
+  </div>
+  <div style="display:flex"><div class="bubble-bot md" style="max-width:92%"><p>Wonderful choice — Kerala in monsoon is pure poetry. A couple of quick questions before I craft your journey…</p></div></div>
+
+  <h2 class="demo">The Travel Journal (live transform of real planner-style markdown)</h2>
+  <div id="itinerary" class="md bubble-bot"></div>
+</div>
+
+<script src="../src/agent/static/itinerary.js"></script>
+<script>
+const SAMPLE = `# Kerala — 5 Days of Backwaters & Tea Country
+
+A gentle, nature-first loop from Kochi through Munnar's tea estates to the Alleppey backwaters — built for two travelers who love food and slow mornings. Estimated **₹38,500 per person**, comfortably inside your budget.
+
+## Day 1: Arrival in Fort Kochi
+
+**Morning:** Land at Kochi (COK). Private transfer to Fort Kochi (~1.5 hr). Check in to a heritage homestay near Princess Street.
+
+**Afternoon:** Walk the Chinese fishing nets at sunset, St. Francis Church, and the Dutch Palace in Mattancherry.
+
+**Evening:** Kathakali performance at the Kerala Kathakali Centre, then dinner at **Oceanos** — try the meen pollichathu.
+
+## Day 2: Kochi → Munnar
+
+**Morning:** Depart 8am by private car (~4 hr, beautiful ghat roads). Stop at Cheeyappara waterfalls en route.
+
+**Afternoon:** Check in near Pothamedu viewpoint. Short tea-garden walk.
+
+**Evening:** Dinner at your stay — order the Kerala sadya in advance.
+
+## Day 3: Munnar tea country
+
+**Morning:** Eravikulam National Park (go early — first buses at 7:30am) for the Nilgiri tahr.
+
+**Afternoon:** Tea Museum and tasting at Kannan Devan Hills. Photo stop at Top Station.
+
+**Evening:** Stroll the old market; pick up cardamom and tea to carry home.
+
+## Day 4: Munnar → Alleppey houseboat
+
+**Morning:** Drive down to Alleppey (~4.5 hr). Board your private houseboat by 12:30pm.
+
+**Afternoon:** Cruise the backwaters past paddy fields and village jetties. Lunch on board — karimeen fry, fresh from the lake.
+
+**Evening:** Sunset on the upper deck; the boat anchors for the night.
+
+## Day 5: Backwater morning & departure
+
+**Morning:** Sunrise over Vembanad Lake, village canoe ride, disembark by 9:30am.
+
+**Afternoon:** Transfer to Kochi airport (~2 hr) for your onward flight.
+
+## Budget breakdown
+
+| Category | Per person |
+|---|---|
+| Stays (4 nights incl. houseboat) | ₹14,500 |
+| Transport (private car, transfers) | ₹8,000 |
+| Food & experiences | ₹9,500 |
+| Entries, tips, buffer | ₹6,500 |
+| **Total** | **₹38,500** |
+
+## Good to know
+
+- Monsoon showers are frequent in July — pack a light rain jacket and quick-dry footwear.
+- Eravikulam closes during calving season (usually Feb–Mar); July is open.
+- Houseboats vary a lot — I picked a highly-rated one with shore power at night (quieter).
+
+> The best of Kerala isn't in the sights — it's in the pace. Keep the mornings slow.`;
+
+const el = document.getElementById('itinerary');
+el.innerHTML = marked.parse(SAMPLE);
+window.TripJournal.enhance(el);
+document.body.insertAdjacentHTML('beforeend',
+  '<div class="above-world" style="text-align:center;padding:1rem;color:var(--text-low);font-size:.8rem">' +
+  (el.dataset.journal ? 'transform: JOURNAL ✓' : 'transform: FALLBACK (plain markdown)') + '</div>');
+</script>
+</body>
+</html>

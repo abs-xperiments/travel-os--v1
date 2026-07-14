@@ -1,6 +1,6 @@
 # TravelOS — Master Packaging Roadmap
 
-*Packaging Studio · created 2026-07-15 · status: Phase 1 complete, Phase 2 next*
+*Packaging Studio · created 2026-07-15 · status: Phases 1–8 delivered on `packaging/premium-experience` (Phase 8's live-audit half awaits your deploy — see packaging/SETUP-GUIDE.md). Deferred by decision: sound (needs sourced audio assets), WebGL world v2, OG share image.*
 
 **Mission:** transform TripOS's working AI planner into the world's first travel-planning
 experience that feels like the journey has already begun — premium, immersive, living —
