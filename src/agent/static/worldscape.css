@@ -1,0 +1,126 @@
+/* ============================================================================
+   Worldscape v6 — the painted journey. One scroll-flight, one button.
+   Oversized storytelling type over a stylized digital-painting dreamscape.
+   The canvas is transparent: the CSS hour-keyed sky is the true sky; a night
+   veil (behind the canvas) deepens as the flight sails into the aurora.
+   ========================================================================== */
+
+#worldscape {
+  position: fixed; inset: 0; z-index: 40;
+  opacity: 0; transition: opacity 1s var(--ease);
+}
+#worldscape.ws-ready { opacity: 1; }
+#worldscape.ws-leaving { opacity: 0; pointer-events: none; transition-duration: .85s; }
+
+.ws-night {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background: linear-gradient(180deg,
+    oklch(11% 0.035 272) 0%, oklch(14% 0.05 285) 55%, oklch(20% 0.07 310) 100%);
+  transition: opacity .4s linear;
+}
+#worldscape canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.ws-vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 62%, rgba(8,10,22,.4) 100%),
+    linear-gradient(180deg, rgba(8,10,22,.22), transparent 16% 84%, rgba(8,10,22,.28));
+}
+
+/* -------------------------------------------------------------- scrolling */
+.ws-scroll {
+  position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none; overscroll-behavior: contain;
+}
+.ws-scroll::-webkit-scrollbar { display: none; }
+.ws-track { height: 620vh; }                   /* the length of the journey */
+
+/* ------------------------------------------------------------- the words  */
+.ws-section {
+  position: fixed; inset-inline: 0; top: 50%;
+  transform: translateY(-50%);
+  text-align: center; pointer-events: none;
+  padding: 0 1.4rem; opacity: 0;
+  will-change: opacity, transform;
+}
+.ws-kicker {
+  font-size: .7rem; font-weight: 650; letter-spacing: .28em;
+  text-transform: uppercase; color: var(--route);
+  margin-bottom: 1rem;
+  text-shadow: 0 1px 10px rgba(6,8,18,.6);
+}
+.ws-title {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(2.4rem, 7.5vw, 5rem);
+  line-height: 1.06; letter-spacing: -0.01em;
+  color: var(--text-hi);
+  text-shadow: 0 2px 30px oklch(14% 0.03 268 / .6);
+  max-width: 17ch; margin: 0 auto;
+  transition: letter-spacing 1.2s var(--ease);  /* typography breathes */
+}
+.ws-section.ws-near .ws-title { letter-spacing: 0; }
+.ws-title em { font-style: normal; color: var(--gold); }
+.ws-sub {
+  margin-top: 1rem; font-size: clamp(.95rem, 2vw, 1.15rem);
+  color: var(--text-mid); max-width: 44ch; margin-inline: auto;
+  text-shadow: 0 1px 14px oklch(14% 0.03 268 / .55);
+}
+.ws-cta { pointer-events: auto; margin-top: 1.6rem; }
+
+.ws-hint {
+  position: absolute; bottom: 1.6rem; left: 50%; transform: translateX(-50%);
+  color: var(--text-mid); font-size: .74rem; letter-spacing: .2em;
+  text-transform: uppercase; display: flex; flex-direction: column;
+  align-items: center; gap: .4rem; pointer-events: none;
+  transition: opacity .8s var(--ease);
+  text-shadow: 0 1px 10px rgba(6,8,18,.6);
+}
+.ws-hint::after {
+  content: ""; width: 1px; height: 34px;
+  background: linear-gradient(180deg, var(--gold), transparent);
+  animation: ws-drip 1.9s var(--ease) infinite;
+}
+@keyframes ws-drip {
+  0% { transform: scaleY(0); transform-origin: top }
+  60% { transform: scaleY(1); transform-origin: top }
+  100% { transform: scaleY(1); opacity: 0 }
+}
+
+.ws-skip { position: absolute; top: 1rem; right: 1rem; z-index: 5; }
+
+/* ------------------------------------------------- beneath the waves ----- */
+/* The deep veil: sinks with the camera, then becomes the planning theme's
+   ink when the guide appears — the world literally fades into the product. */
+.ws-deep {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background: linear-gradient(180deg,
+    oklch(22% 0.06 220 / .9) 0%, oklch(15% 0.045 250) 55%, oklch(14% 0.028 268) 100%);
+  transition: opacity .5s linear;
+}
+
+/* ------------------------------------------------- meeting TripOS -------- */
+.ws-meet {
+  position: absolute; inset-inline: 0; bottom: 12vh; z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: .4rem;
+  text-align: center; padding: 0 1.4rem;
+}
+.ws-meet[hidden] { display: none; }
+.ws-meet .ws-meet-line {
+  font-family: var(--font-display); color: var(--text-hi);
+  opacity: 0; animation: ws-say 1s var(--ease) forwards;
+  text-shadow: 0 2px 20px rgba(4,6,14,.7);
+}
+.ws-meet .ws-meet-line:nth-child(1) { font-size: clamp(1.7rem, 4.5vw, 2.6rem);
+  font-weight: 700; animation-delay: .3s; }
+.ws-meet .ws-meet-line:nth-child(2) { font-family: var(--font-ui);
+  font-size: clamp(.95rem, 2vw, 1.1rem); color: var(--text-mid); animation-delay: 1.3s; }
+.ws-meet .ws-meet-line:nth-child(3) { font-size: clamp(1.15rem, 2.8vw, 1.5rem);
+  font-weight: 600; color: var(--gold); margin-top: .8rem; animation-delay: 2.4s; }
+.ws-meet .ws-cta { opacity: 0; animation: ws-say 1s var(--ease) forwards;
+  animation-delay: 3.2s; }
+@keyframes ws-say { from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  #worldscape { display: none; }   /* belt & braces — the loader never mounts it */
+}

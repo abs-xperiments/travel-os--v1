@@ -2,7 +2,7 @@
 // static assets; it does NOT try to make an offline chatbot (the product needs the network).
 // Strategy: stale-while-revalidate for /static/* (assets update on the next visit after a
 // deploy — bump CACHE on releases that change them), network for everything else.
-const CACHE = 'tripos-v2';
+const CACHE = 'tripos-v3';   // bumped: calendar-icon + dictation fixes must not serve stale
 const STATIC_ASSETS = [
   '/static/manifest.webmanifest',
   '/static/icons/icon-192.png',
