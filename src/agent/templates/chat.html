@@ -2,52 +2,50 @@
 {% block body %}
 {% include "_splash.html" %}
 {% if not transcript %}
-<!-- The Worldscape: a cinematic journey through real Earth — sunrise valley, high
-     ridgelines, forest light, still waters, aurora — that lands at the chat. Presence,
-     not spectacle. Fresh visits only; skippable instantly; never mounts under
-     reduced-motion or twice a session; if the world can't load fast, the product wins. -->
+<!-- The Worldscape: a scroll-flight through a painted dreamscape — floating pine isles
+     at golden hour, a balloon, a steaming train, a pine valley and its lake, a palm
+     shore where a whale breaches, then open ocean into night as the aurora unfurls —
+     landing at the chat. One journey, one button. Fresh visits only; skippable
+     instantly; never mounts under reduced-motion / Save-Data / no WebGL. -->
 <link rel="stylesheet" href="/static/worldscape.css">
 <div id="worldscape" hidden role="region" aria-label="Welcome journey — scroll to travel, or skip">
-  <div class="ws-stage" aria-hidden="true"></div>
-  <div class="ws-fog" aria-hidden="true"></div>
-  <div class="ws-fog2" aria-hidden="true"></div>
+  <div class="ws-night" aria-hidden="true"></div>
+  <canvas aria-hidden="true"></canvas>
   <div class="ws-vignette" aria-hidden="true"></div>
-  <div class="ws-grain" aria-hidden="true"></div>
   <button type="button" class="btn-ghost ws-skip text-sm" id="ws-skip">Skip to planning →</button>
   <div class="ws-scroll" tabindex="0">
     <div class="ws-track"></div>
   </div>
   <section class="ws-section" style="opacity:1">
-    <div class="ws-kicker">First light</div>
-    <h2 class="ws-title">Feel the trip before you take it.</h2>
-    <p class="ws-sub">You're standing in it already. Scroll to walk.</p>
-  </section>
-  <section class="ws-section">
     <div class="ws-kicker">The high country</div>
-    <h2 class="ws-title">Anywhere on Earth, planned around you.</h2>
-    <p class="ws-sub">Fjords, backwaters, deserts, old cities — name a place,
-      or just how you want to feel.</p>
+    <h2 class="ws-title">Feel the trip <em>before</em> you take it.</h2>
+    <p class="ws-sub">You've just left the ground. Scroll to fly.</p>
   </section>
   <section class="ws-section">
-    <div class="ws-kicker">Under the canopy</div>
-    <h2 class="ws-title">Talk to it like a friend who's been everywhere.</h2>
-    <p class="ws-sub">It plans the days, the stays, the food, the budget —
-      and tells you honestly what won't work.</p>
+    <div class="ws-kicker">The valley</div>
+    <h2 class="ws-title">Anywhere on <em>Earth</em>, planned around you.</h2>
+    <p class="ws-sub">Tell a travel companion where — or just how you want to feel.</p>
   </section>
   <section class="ws-section">
-    <div class="ws-kicker">Still waters</div>
-    <h2 class="ws-title">Your plan becomes a journal.</h2>
-    <p class="ws-sub">Day-by-day chapters and a keepsake PDF your family
-      will actually read.</p>
+    <div class="ws-kicker">The forest &amp; the lake</div>
+    <h2 class="ws-title">Talk to it like a <em>friend</em> who's been everywhere.</h2>
+    <p class="ws-sub">It plans the days, the stays, the food, the budget.</p>
   </section>
   <section class="ws-section">
-    <div class="ws-kicker">Nightfall</div>
-    <h2 class="ws-title">Where shall we go?</h2>
+    <div class="ws-kicker">The shore</div>
+    <h2 class="ws-title">Your plan becomes a <em>journal</em>.</h2>
+    <p class="ws-sub">Day-by-day chapters and a keepsake PDF your family will actually read.</p>
+  </section>
+  <section class="ws-section">
+    <div class="ws-kicker">The open sea, at night</div>
+    <h2 class="ws-title">Where shall we <em>go</em>?</h2>
     <div class="ws-cta"><button type="button" class="btn-primary" id="ws-begin">Begin the journey</button></div>
   </section>
   <div class="ws-hint">Scroll to travel</div>
-  <div class="ws-credit">photography via Unsplash</div>
 </div>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
 <script type="module">
   // Mount the journey only when it can be beautiful AND polite.
   (function () {
@@ -56,11 +54,13 @@
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const flown = sessionStorage.getItem('tripos_flown');
     const save = navigator.connection && navigator.connection.saveData;
+    const gl = (() => { try { const c = document.createElement('canvas');
+      return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } })();
     const land = () => { el.remove();
       const inp = document.getElementById('chat-input'); if (inp) inp.focus(); };
-    if (reduced || flown || save) { el.remove(); return; }
+    if (reduced || flown || save || !gl) { el.remove(); return; }
     import('/static/worldscape.js').then((m) => {
-      el.hidden = false;              // stays transparent until the first frame is ready
+      el.hidden = false;              // stays transparent until the first frame renders
       const world = m.start(el, () => { sessionStorage.setItem('tripos_flown', '1');
         const inp = document.getElementById('chat-input'); if (inp) inp.focus(); });
       const skip = () => { sessionStorage.setItem('tripos_flown', '1'); world.finish(); };
@@ -87,6 +87,8 @@
     </div>
     {% if user %}
     <nav class="flex items-center gap-3 text-sm" aria-label="Main">
+      <button id="sky-dial" type="button" class="btn-ghost !px-2.5 !py-1.5 text-base"
+              title="Change the sky (auto follows your local time)">◐</button>
       {% if transcript %}
       <a href="/trip/{{ trip_id }}/print" class="link hidden sm:inline">Download PDF</a>
       {% endif %}
@@ -119,6 +121,8 @@
     </nav>
     {% else %}
     <nav class="flex items-center gap-3 text-sm" aria-label="Main">
+      <button id="sky-dial" type="button" class="btn-ghost !px-2.5 !py-1.5 text-base"
+              title="Change the sky (auto follows your local time)">◐</button>
       <a href="/login" class="link">Login</a>
       <a href="/login" class="btn-primary !py-2 text-sm">Start your journey</a>
     </nav>
@@ -345,6 +349,29 @@
       input.placeholder = PLACES[pIdx];
     }
   }, 7000);
+
+  // The sky dial: cycle auto → dawn → day → dusk → night. The world follows.
+  const dial = document.getElementById('sky-dial');
+  if (dial) {
+    const MODES = ['auto', 'dawn', 'day', 'dusk', 'night'];
+    const ICONS = { auto: '◐', dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙' };
+    let cur = 'auto';
+    try { cur = localStorage.getItem('tripos_sky') || 'auto'; } catch (e) {}
+    dial.textContent = ICONS[cur] || '◐';
+    dial.addEventListener('click', () => {
+      cur = MODES[(MODES.indexOf(cur) + 1) % MODES.length];
+      try { localStorage.setItem('tripos_sky', cur); } catch (e) {}
+      dial.textContent = ICONS[cur];
+      if (cur === 'auto') {
+        const h = new Date().getHours();
+        document.documentElement.dataset.sky =
+          (h >= 5 && h < 8) ? 'dawn' : (h >= 8 && h < 16) ? 'day'
+          : (h >= 16 && h < 20) ? 'dusk' : 'night';
+      } else {
+        document.documentElement.dataset.sky = cur;
+      }
+    });
+  }
 
   // Profile dropdown (logged-in nav): toggle on click, close on outside click.
   const profileBtn = document.getElementById('profile-btn');

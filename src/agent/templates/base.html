@@ -31,11 +31,15 @@
   <link rel="stylesheet" href="/static/journal.css">
   <script>
     // The sky follows the traveler's own hour — arriving at night feels like night.
+    // A saved sky-dial choice (see chat header) overrides the clock until set back to auto.
     (function () {
+      var pick = null;
+      try { pick = localStorage.getItem('tripos_sky'); } catch (e) { /* private mode */ }
+      if (pick && pick !== 'auto') { document.documentElement.dataset.sky = pick; return; }
       var h = new Date().getHours();
-      var sky = (h >= 5 && h < 8) ? 'dawn' : (h >= 8 && h < 16) ? 'day'
-              : (h >= 16 && h < 20) ? 'dusk' : 'night';
-      document.documentElement.dataset.sky = sky;
+      document.documentElement.dataset.sky =
+        (h >= 5 && h < 8) ? 'dawn' : (h >= 8 && h < 16) ? 'day'
+        : (h >= 16 && h < 20) ? 'dusk' : 'night';
     })();
   </script>
   <style>.htmx-indicator{opacity:0;transition:opacity .2s}
