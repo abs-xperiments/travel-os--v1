@@ -2,45 +2,46 @@
 {% block body %}
 {% include "_splash.html" %}
 {% if not transcript %}
-<!-- The Worldscape: a scroll-flight through a painted dreamscape — floating pine isles
-     at golden hour, a balloon, a steaming train, a pine valley and its lake, a palm
-     shore where a whale breaches, then open ocean into night as the aurora unfurls —
-     landing at the chat. One journey, one button. Fresh visits only; skippable
-     instantly; never mounts under reduced-motion / Save-Data / no WebGL. -->
+<!-- The Worldscape: explore → discover → meet TripOS → plan. A scroll-flight through
+     five worlds (highlands, ancient forest, snow passes with distant trekkers, the dream
+     metropolis, then beneath the ocean) ending with the diver-guide rising to introduce
+     TripOS inside the planning theme. No chat bubble during exploration — the intro is
+     earned. Skippable instantly; never mounts under reduced-motion / Save-Data / no WebGL. -->
 <link rel="stylesheet" href="/static/worldscape.css">
 <div id="worldscape" hidden role="region" aria-label="Welcome journey — scroll to travel, or skip">
   <div class="ws-night" aria-hidden="true"></div>
   <canvas aria-hidden="true"></canvas>
+  <div class="ws-deep" aria-hidden="true"></div>
   <div class="ws-vignette" aria-hidden="true"></div>
   <button type="button" class="btn-ghost ws-skip text-sm" id="ws-skip">Skip to planning →</button>
   <div class="ws-scroll" tabindex="0">
     <div class="ws-track"></div>
   </div>
-  <section class="ws-section" style="opacity:1">
-    <div class="ws-kicker">The high country</div>
+  <section class="ws-section" data-at="0.02" style="opacity:1">
+    <div class="ws-kicker">The highlands</div>
     <h2 class="ws-title">Feel the trip <em>before</em> you take it.</h2>
     <p class="ws-sub">You've just left the ground. Scroll to fly.</p>
   </section>
-  <section class="ws-section">
-    <div class="ws-kicker">The valley</div>
+  <section class="ws-section" data-at="0.26">
+    <div class="ws-kicker">The ancient forest</div>
     <h2 class="ws-title">Anywhere on <em>Earth</em>, planned around you.</h2>
-    <p class="ws-sub">Tell a travel companion where — or just how you want to feel.</p>
   </section>
-  <section class="ws-section">
-    <div class="ws-kicker">The forest &amp; the lake</div>
-    <h2 class="ws-title">Talk to it like a <em>friend</em> who's been everywhere.</h2>
-    <p class="ws-sub">It plans the days, the stays, the food, the budget.</p>
+  <section class="ws-section" data-at="0.5">
+    <div class="ws-kicker">The high passes</div>
+    <h2 class="ws-title">Some places <em>change</em> you.</h2>
+    <p class="ws-sub">Look closer — travelers on the ridge.</p>
   </section>
-  <section class="ws-section">
-    <div class="ws-kicker">The shore</div>
-    <h2 class="ws-title">Your plan becomes a <em>journal</em>.</h2>
-    <p class="ws-sub">Day-by-day chapters and a keepsake PDF your family will actually read.</p>
+  <section class="ws-section" data-at="0.73">
+    <div class="ws-kicker">The dream city</div>
+    <h2 class="ws-title">Every dream city, one <em>conversation</em> away.</h2>
   </section>
-  <section class="ws-section">
-    <div class="ws-kicker">The open sea, at night</div>
-    <h2 class="ws-title">Where shall we <em>go</em>?</h2>
-    <div class="ws-cta"><button type="button" class="btn-primary" id="ws-begin">Begin the journey</button></div>
-  </section>
+  <div class="ws-meet" hidden>
+    <div class="ws-meet-line">Hi, I'm Trip<em style="font-style:normal;color:var(--gold)">OS</em>.</div>
+    <div class="ws-meet-line">Your AI travel planner. I build real, day-by-day journeys —
+      the stays, the food, the budget — around you.</div>
+    <div class="ws-meet-line">Ready to begin your journey?</div>
+    <div class="ws-cta"><button type="button" class="btn-primary" id="ws-begin">Begin</button></div>
+  </div>
   <div class="ws-hint">Scroll to travel</div>
 </div>
 <script type="importmap">
@@ -152,13 +153,15 @@
           Where shall we go,<br>{{ (user.name.split(' ')[0] if user and user.name else "traveler") }}?
         </div>
         <p class="mt-3 text-sm" style="color:var(--text-mid)">
-          Name a place — or just a feeling — and I'll craft the journey around you.
+          Name a place — or just say <button type="button"
+            class="example-chip link underline" style="font:inherit">discover</button> —
+          and I'll craft the journey around you.
         </p>
         <div class="route-divider mx-auto mt-5 max-w-[10rem]"></div>
       </div>
-      <div class="flex">
-        <div class="md max-w-[92%] bubble-bot" data-md>{{ greeting }}</div>
-      </div>
+      {# The greeting bubble is gone from the landing (design review): the world and the
+         diver-guide make the introduction; the chat begins clean. The agent's greeting
+         still lives in tripos_web.py for transcripts and non-visual clients. #}
     {% endfor %}
   </div>
 
