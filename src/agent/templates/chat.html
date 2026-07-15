@@ -101,7 +101,12 @@
       <div class="relative">
         <button id="profile-btn" type="button" class="block" title="{{ user.name or user.email }}">
           {% if user.avatar_url %}
-          <img src="{{ user.avatar_url }}" alt="Your profile" class="h-8 w-8 rounded-full object-cover">
+          {# If the avatar fails to load, the initial takes over — never a broken image. #}
+          <img src="{{ user.avatar_url }}" alt="Your profile"
+               class="h-8 w-8 rounded-full object-cover"
+               onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+          <span hidden class="flex h-8 w-8 items-center justify-center rounded-full font-bold"
+                style="background:var(--gold);color:var(--on-gold)">{{ (user.name or user.email)[:1] | upper }}</span>
           {% else %}
           <span class="flex h-8 w-8 items-center justify-center rounded-full font-bold"
                 style="background:var(--gold);color:var(--on-gold)">{{ (user.name or user.email)[:1] | upper }}</span>
@@ -323,6 +328,7 @@
       if (acc) {
         bot.innerHTML = marked.parse(acc);
         if (window.TripJournal) window.TripJournal.enhance(bot);  // the journal reveal
+        if (window.safeLinks) safeLinks(bot);   // recommendations open in a new tab
       }
     } catch (err) {
       hideProg();
@@ -424,17 +430,12 @@
   // user-influenced text is inserted via textContent — never parsed as markdown/HTML.
   const CHIP = 'example-chip ticket';
   const CHIP_ON = ['on'];
-  const MONTHS = ['January','February','March','April','May','June',
-                  'July','August','September','October','November','December'];
-
-  function monthName(value) {           // "2026-10" -> "October 2026"
-    const [y, m] = value.split('-');
-    return MONTHS[+m - 1] + ' ' + y;
-  }
 
   function renderForm(spec) {
     const answers = {};                 // field -> display string (already human-readable)
     const labels = {};                  // field -> short label for the composed message
+    const fieldInputs = {};             // field -> {input, set} for cross-field updates
+                                        // (the date range auto-fills the days answer)
 
     const row = document.createElement('div');
     row.className = 'flex';
@@ -527,34 +528,34 @@
         });
         line.appendChild(other);
       } else if (q.type === 'month') {
-        const month = document.createElement('input');
-        month.type = 'month';
-        month.className = 'field px-3 py-1 text-sm';
-        month.addEventListener('input', () => {
-          if (month.value) { setActive(q.field, [flex], []); setAnswer(monthName(month.value)); }
-        });
-        const flex = makeChip('Flexible / not sure', (b) => {
-          month.value = '';
-          setActive(q.field, [flex], [b]);
-          setAnswer('Flexible on timing');
-        });
-        const exact = document.createElement('div');
-        exact.className = 'hidden flex items-center gap-2';
+        // Redesigned (product review): exact start & end dates only — no month-only,
+        // no "flexible" chip. Picking both dates auto-fills "How many days?" live.
+        const mkLabel = (txt) => {
+          const s = document.createElement('span');
+          s.textContent = txt;
+          s.className = 'text-xs';
+          s.style.color = 'var(--text-low)';
+          return s;
+        };
         const d1 = document.createElement('input'); d1.type = 'date';
         const d2 = document.createElement('input'); d2.type = 'date';
-        [d1, d2].forEach((d) => {
-          d.className = 'field px-2 py-1 text-sm';
-          d.addEventListener('input', () => {
-            if (d1.value) setAnswer(d1.value + (d2.value ? ' to ' + d2.value : ''));
-          });
-        });
-        exact.append(d1, document.createTextNode('→'), d2);
-        const exactToggle = makeChip('Exact dates', () => {
-          exact.classList.toggle('hidden');
-          setActive(q.field, [flex], []);
-        });
-        line.append(month, flex, exactToggle);
-        wrap.appendChild(exact);
+        [d1, d2].forEach((d) => { d.className = 'field px-3 py-1.5 text-sm'; });
+        const update = () => {
+          if (d1.value) d2.min = d1.value;                 // the return is never before the start
+          if (d1.value && d2.value && d2.value < d1.value) d2.value = d1.value;
+          if (d1.value && d2.value) {
+            setAnswer(d1.value + ' to ' + d2.value);
+            // Live day count: inclusive of both travel days, re-computed on every change.
+            const days = Math.round((new Date(d2.value) - new Date(d1.value)) / 864e5) + 1;
+            const dur = fieldInputs.duration;
+            if (dur && days > 0) { dur.input.value = days; dur.set(String(days) + ' days'); }
+          } else if (d1.value) {
+            setAnswer('starting ' + d1.value);
+          }
+        };
+        d1.addEventListener('input', update);
+        d2.addEventListener('input', update);
+        line.append(mkLabel('From'), d1, mkLabel('To'), d2);
       } else if (q.type === 'budget' || q.type === 'number') {
         const n = document.createElement('input');
         n.type = 'number';
@@ -564,6 +565,7 @@
         const fmt = (v) => q.type === 'budget'
           ? '₹' + Number(v).toLocaleString('en-IN') + ' per person' : String(v);
         n.addEventListener('input', () => setAnswer(n.value ? fmt(n.value) : ''));
+        fieldInputs[q.field] = { input: n, set: setAnswer };   // e.g. dates fill duration
         line.appendChild(n);
         (q.presets || []).forEach((p) => {
           line.appendChild(makeChip('₹' + Number(p).toLocaleString('en-IN'), () => {
@@ -585,6 +587,50 @@
     }
 
     (spec.questions || []).forEach((q) => addQuestion(q, null));
+
+    // ---- "Anything else?" — always the final section of every Tap-In form. --------
+    // Free text or voice: celebrations, must-avoids, must-tries, anything that should
+    // shape the plan. Composed into the same submitted message as the other answers.
+    (function addExtras() {
+      const wrap = document.createElement('div');
+      wrap.className = 'space-y-2';
+      const lab = document.createElement('div');
+      lab.className = 'text-sm font-medium';
+      lab.style.color = 'var(--text-hi)';
+      lab.textContent = 'Anything else I should consider?';
+      const ta = document.createElement('textarea');
+      ta.rows = 2;
+      ta.placeholder = 'e.g. celebrating our anniversary · avoid long drives · must-try local seafood';
+      ta.className = 'field w-full px-3 py-2 text-sm';
+      labels.extra_notes = 'Additional preferences';
+      ta.addEventListener('input', () => { answers.extra_notes = ta.value.trim(); refresh(); });
+      const lineEx = document.createElement('div');
+      lineEx.className = 'flex items-start gap-2';
+      lineEx.appendChild(ta);
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SR) {                                             // voice input, where supported
+        const mic = makeChip('🎤 Speak', () => {
+          if (mic.dataset.on) return;                       // one dictation at a time
+          mic.dataset.on = '1'; mic.classList.add('on'); mic.textContent = '● Listening…';
+          const rec = new SR();
+          rec.lang = document.documentElement.lang || 'en-IN';
+          rec.interimResults = false;
+          rec.onresult = (e) => {
+            const said = e.results[0][0].transcript;
+            ta.value = (ta.value + ' ' + said).trim();
+            ta.dispatchEvent(new Event('input'));
+          };
+          rec.onend = () => { delete mic.dataset.on; mic.classList.remove('on'); mic.textContent = '🎤 Speak'; };
+          rec.onerror = rec.onend;
+          try { rec.start(); } catch (e) { rec.onend(); }
+        });
+        mic.classList.add('shrink-0');
+        lineEx.appendChild(mic);
+      }
+      wrap.append(lab, lineEx);
+      box.appendChild(wrap);
+    })();
+
     box.appendChild(review);
 
     const submit = document.createElement('button');

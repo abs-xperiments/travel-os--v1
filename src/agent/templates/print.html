@@ -115,6 +115,9 @@
       background: repeating-linear-gradient(90deg, var(--paper-line) 0 7px, transparent 7px 14px); }
 
     #source, #fallback-note { display: none; }
+    .trip-divider { font-family: "Fraunces", Georgia, serif; font-weight: 700;
+      font-size: 1.2rem; margin: 1.6rem 0 .4rem; padding-bottom: .35rem;
+      border-bottom: 2px solid var(--paper-gold); color: var(--paper-ink); }
     .note { border: 1px dashed var(--paper-line); border-radius: 10px;
       padding: .8rem 1rem; color: var(--paper-mid); font-size: .88rem;
       margin-bottom: 1rem; }
@@ -164,8 +167,11 @@
       var sources = Array.prototype.slice.call(document.querySelectorAll('#source .src-md'));
       var docEl = document.getElementById('document');
 
-      // Render each assistant turn off-screen, then keep only the LAST full itinerary.
-      var chosen = null, fallback = null;
+      // Render each assistant turn off-screen and keep itineraries only. Selection rule
+      // (product review): the LAST itinerary PER DISTINCT DESTINATION exports, in the
+      // order each destination was finalized — so iterations of one trip collapse to the
+      // final version, while two genuinely different trips in one chat BOTH export.
+      var journals = [], fallback = null;
       sources.forEach(function (s) {
         var el = document.createElement('div');
         el.className = 'md';
@@ -173,12 +179,33 @@
         fallback = el;                        // most recent reply, whatever it is
         if (window.TripJournal) {
           window.TripJournal.enhance(el);     // becomes a .journal only if it IS an itinerary
-          if (el.dataset.journal) chosen = el;
+          if (el.dataset.journal) {
+            var title = (el.querySelector('.j-title') || {}).textContent || '';
+            // Destination key = the title's leading words before any separator/number,
+            // so "Kerala — 5 Days…" and "Kerala — 7 Days…" collapse to one final trip.
+            var key = title.toLowerCase().split(/[—–:|,]|\s\d/)[0].trim()
+                      || 'trip-' + journals.length;
+            journals.push({ el: el, key: key, title: title });
+          }
         }
       });
 
-      if (chosen) {
-        docEl.appendChild(chosen);
+      var byKey = new Map();                  // Map preserves last-set order per key
+      journals.forEach(function (j) { byKey.delete(j.key); byKey.set(j.key, j); });
+      var picks = Array.from(byKey.values());
+
+      if (picks.length) {
+        picks.forEach(function (j, idx) {
+          if (picks.length > 1) {
+            var div = document.createElement('h2');
+            div.className = 'trip-divider';
+            div.textContent = 'Journey ' + (idx + 1) + ' of ' + picks.length +
+              (j.title ? ' — ' + j.title : '');
+            if (idx > 0) div.style.breakBefore = 'page';
+            docEl.appendChild(div);
+          }
+          docEl.appendChild(j.el);
+        });
       } else if (fallback) {
         document.getElementById('fallback-note').style.display = 'block';
         docEl.appendChild(fallback);

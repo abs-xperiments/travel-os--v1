@@ -10,7 +10,10 @@
   <div class="glass p-6 space-y-5">
     <div class="flex items-center gap-4">
       {% if user.avatar_url %}
-      <img src="{{ user.avatar_url }}" alt="" class="h-16 w-16 rounded-full object-cover">
+      <img src="{{ user.avatar_url }}" alt="" class="h-16 w-16 rounded-full object-cover"
+           onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+      <div hidden class="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold"
+           style="background:var(--gold);color:var(--on-gold)">{{ (user.name or user.email)[:1] | upper }}</div>
       {% else %}
       <div class="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold"
            style="background:var(--gold);color:var(--on-gold)">{{ (user.name or user.email)[:1] | upper }}</div>

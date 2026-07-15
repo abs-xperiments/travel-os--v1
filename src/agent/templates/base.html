@@ -67,11 +67,18 @@
   </div>
   <script>
     // Render any new assistant bubbles (their raw markdown sits safely in a text node).
+    // Recommendation links (Google-search redirects etc.) open in a new tab, safely.
+    function safeLinks(el){
+      el.querySelectorAll('a[href^="http"]').forEach(function(a){
+        a.target = '_blank'; a.rel = 'noopener';
+      });
+    }
     function renderMarkdown(){
       document.querySelectorAll('.md[data-md]:not([data-done])').forEach(function(el){
         el.innerHTML = marked.parse(el.textContent);
         el.setAttribute('data-done','1');
         if (window.TripJournal) window.TripJournal.enhance(el);
+        safeLinks(el);
       });
     }
     function scrollChat(){ var c=document.getElementById('chat'); if(c){ c.scrollTop=c.scrollHeight; } }

@@ -237,7 +237,14 @@ html:not([data-sky="night"]) .w-shooting { display: none; }
   border: 1px solid var(--line);
   border-radius: var(--radius); color: var(--text-hi);
   transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  color-scheme: dark;   /* native date/number widgets render for dark backgrounds */
 }
+/* The calendar glyph must be visible on ink — invert it toward white. */
+.field::-webkit-calendar-picker-indicator {
+  filter: invert(0.88) sepia(0.1);
+  opacity: 0.9; cursor: pointer;
+}
+textarea.field { resize: vertical; min-height: 2.7rem; line-height: 1.5; }
 .field::placeholder { color: var(--text-low); }
 .field:focus { outline: none; border-color: var(--gold);
   box-shadow: 0 0 0 3px var(--gold-soft); }
