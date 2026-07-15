@@ -17,23 +17,23 @@
   <div class="ws-scroll" tabindex="0">
     <div class="ws-track"></div>
   </div>
-  <section class="ws-section" data-at="0.02" style="opacity:1">
-    <div class="ws-kicker">The highlands</div>
+  <section class="ws-section" data-at="0.03" style="opacity:1">
+    <div class="ws-kicker">The high silence</div>
     <h2 class="ws-title">Feel the trip <em>before</em> you take it.</h2>
-    <p class="ws-sub">You've just left the ground. Scroll to fly.</p>
+    <p class="ws-sub">Begin where the air is thin. Scroll to fly.</p>
   </section>
-  <section class="ws-section" data-at="0.26">
-    <div class="ws-kicker">The ancient forest</div>
-    <h2 class="ws-title">Anywhere on <em>Earth</em>, planned around you.</h2>
+  <section class="ws-section" data-at="0.3">
+    <div class="ws-kicker">The living forest</div>
+    <h2 class="ws-title">Wander where the forest <em>breathes</em>.</h2>
+    <p class="ws-sub">Anywhere on Earth, planned around you.</p>
   </section>
-  <section class="ws-section" data-at="0.5">
-    <div class="ws-kicker">The high passes</div>
-    <h2 class="ws-title">Some places <em>change</em> you.</h2>
-    <p class="ws-sub">Look closer — travelers on the ridge.</p>
-  </section>
-  <section class="ws-section" data-at="0.73">
+  <section class="ws-section" data-at="0.56">
     <div class="ws-kicker">The dream city</div>
-    <h2 class="ws-title">Every dream city, one <em>conversation</em> away.</h2>
+    <h2 class="ws-title">Chase the lights that never <em>sleep</em>.</h2>
+  </section>
+  <section class="ws-section" data-at="0.8">
+    <div class="ws-kicker">The shore</div>
+    <h2 class="ws-title">Follow the shore into the <em>sea</em>.</h2>
   </section>
   <div class="ws-meet" hidden>
     <div class="ws-meet-line">Hi, I'm Trip<em style="font-style:normal;color:var(--gold)">OS</em>.</div>
@@ -436,6 +436,7 @@
     const labels = {};                  // field -> short label for the composed message
     const fieldInputs = {};             // field -> {input, set} for cross-field updates
                                         // (the date range auto-fills the days answer)
+    const submitStops = [];             // cleanups to run when the form is submitted
 
     const row = document.createElement('div');
     row.className = 'flex';
@@ -607,24 +608,23 @@
       const lineEx = document.createElement('div');
       lineEx.className = 'flex items-start gap-2';
       lineEx.appendChild(ta);
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SR) {                                             // voice input, where supported
-        const mic = makeChip('🎤 Speak', () => {
-          if (mic.dataset.on) return;                       // one dictation at a time
-          mic.dataset.on = '1'; mic.classList.add('on'); mic.textContent = '● Listening…';
-          const rec = new SR();
-          rec.lang = document.documentElement.lang || 'en-IN';
-          rec.interimResults = false;
-          rec.onresult = (e) => {
-            const said = e.results[0][0].transcript;
-            ta.value = (ta.value + ' ' + said).trim();
-            ta.dispatchEvent(new Event('input'));
-          };
-          rec.onend = () => { delete mic.dataset.on; mic.classList.remove('on'); mic.textContent = '🎤 Speak'; };
-          rec.onerror = rec.onend;
-          try { rec.start(); } catch (e) { rec.onend(); }
+      if (window.TripVoice) {       // dictation via the chat mic's proven engine:
+        // same unmute/mute toggle, same rebuild-from-results transcript logic —
+        // no per-event appending, so nothing can ever duplicate (see _voice_input.html).
+        const mic = document.createElement('button');
+        mic.type = 'button';
+        mic.className = CHIP + ' shrink-0';
+        mic.textContent = '🎤 Speak';
+        const voice = window.TripVoice.attach(ta, {
+          onState(on) {
+            mic.classList.toggle('on', on);
+            mic.textContent = on ? '● Listening… tap to stop' : '🎤 Speak';
+            mic.setAttribute('aria-pressed', String(on));
+          },
+          onDenied() { mic.textContent = '🎤 Mic blocked'; },
         });
-        mic.classList.add('shrink-0');
+        mic.addEventListener('click', () => voice.toggle());
+        submitStops.push(voice.stop);                       // sending the form ends dictation
         lineEx.appendChild(mic);
       }
       wrap.append(lab, lineEx);
@@ -638,6 +638,7 @@
     submit.textContent = '✓ Build my trip';
     submit.className = 'btn-primary';
     submit.addEventListener('click', () => {
+      submitStops.forEach((fn) => { try { fn(); } catch (e) { /* already stopped */ } });
       const filled = Object.keys(answers).filter((f) => answers[f]);
       if (!filled.length) return;        // nothing answered -> nothing to send
       const parts = filled.map((f) => labels[f] + ': ' + answers[f]);

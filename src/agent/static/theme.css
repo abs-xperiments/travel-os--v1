@@ -239,10 +239,22 @@ html:not([data-sky="night"]) .w-shooting { display: none; }
   transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
   color-scheme: dark;   /* native date/number widgets render for dark backgrounds */
 }
-/* The calendar glyph must be visible on ink — invert it toward white. */
+/* Calendar glyph visibility (bug fix 2026-07-15): color-scheme:dark already makes
+   Chromium/Safari draw a LIGHT indicator — the earlier invert() filter flipped that
+   light icon back to dark, which is why it stayed invisible. No filter; force full
+   opacity; add a gold drop so it reads on any sky. */
+input[type="date"].field::-webkit-calendar-picker-indicator,
+input[type="month"].field::-webkit-calendar-picker-indicator,
 .field::-webkit-calendar-picker-indicator {
-  filter: invert(0.88) sepia(0.1);
-  opacity: 0.9; cursor: pointer;
+  filter: none;
+  opacity: 1;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  background-color: oklch(80% 0.13 78 / 0.25);   /* gold chip behind the glyph */
+}
+.field::-webkit-calendar-picker-indicator:hover {
+  background-color: oklch(80% 0.13 78 / 0.45);
 }
 textarea.field { resize: vertical; min-height: 2.7rem; line-height: 1.5; }
 .field::placeholder { color: var(--text-low); }

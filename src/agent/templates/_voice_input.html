@@ -1,8 +1,11 @@
 <script>
 // ---- Voice input: a smart notepad, not a command channel -----------------------------
-// Speech is transcribed INTO the chat input and APPENDED to whatever is already there —
+// Speech is transcribed INTO a text box and APPENDED to whatever is already there —
 // it never replaces existing text and never auto-sends. Unsupported browsers (e.g.
-// Firefox) simply never see the mic. Split from chat.html on 2026-06-07 (500-line cap).
+// Firefox) simply never see a mic. Split from chat.html on 2026-06-07 (500-line cap).
+// Refactored 2026-07-15 into a reusable engine (window.TripVoice) so the questionnaire's
+// "Anything else?" dictation uses the SAME battle-tested transcript logic as the chat mic
+// (a naive per-event append there duplicated text — the exact bug this file solved).
 //
 // Transcript architecture (mobile root-cause fix): we keep NO accumulator across
 // recognition events. Mobile engines (Android Chrome, iOS Safari) re-send the transcript
@@ -13,25 +16,13 @@
 // after a pause despite continuous=true, so while the user hasn't stopped we COMMIT the
 // finished session and restart a fresh one.
 //
-// Editability (mobile UX fix, 2026-06-07): the input is NEVER readOnly. Tapping into the
+// Editability (mobile UX fix, 2026-06-07): the target is NEVER readOnly. Tapping into the
 // text or typing WHILE recording simply stops the recording (edit intent = stop signal),
 // so the transcript is always a normal, fully editable draft — cursor, selection,
-// keyboard, paste, everything. A readOnly input on mobile refuses to open the keyboard,
-// which made the old guard feel like being locked into voice mode.
-(function () {
+// keyboard, paste, everything.
+window.TripVoice = (function () {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const mic = document.getElementById('chat-mic');
-  const micOn = document.getElementById('mic-on');
-  const micOff = document.getElementById('mic-off');
-  const input = document.getElementById('chat-input');
-  const form = document.getElementById('chat-form');
-  if (!SR || !mic) return;             // unsupported browser -> mic stays hidden
-  mic.hidden = false;
-
-  let rec = null;        // the active recognition session; null when idle
-  let recording = false; // USER intent: true from start until stop/edit/submit
-  let voiceBase = '';    // committed text: box content at start + finished pause-sessions
-  let session = '';      // the CURRENT engine session's text, rebuilt on every event
+  if (!SR) return null;                // unsupported browser -> callers hide their mics
 
   // "Plan a Japan trip." + "Eight days." -> "Plan a Japan trip. Eight days."
   function joinSpeech(a, b) {
@@ -55,87 +46,121 @@
     return acc + ' ' + t;              // a genuinely new segment (desktop continuous mode)
   }
 
-  function renderVoice() {
-    input.value = joinSpeech(voiceBase, session);
+  // Attach dictation to any input/textarea. opts.onState(on) updates the caller's mic UI;
+  // opts.onDenied() (optional) is told about a hard microphone failure.
+  // Returns { toggle, stop, recording } — the caller owns its button.
+  function attach(target, opts) {
+    opts = opts || {};
+    let rec = null;        // the active recognition session; null when idle
+    let recording = false; // USER intent: true from start until stop/edit
+    let voiceBase = '';    // committed text: box content at start + finished pause-sessions
+    let session = '';      // the CURRENT engine session's text, rebuilt on every event
+
+    function render() {
+      target.value = joinSpeech(voiceBase, session);
+      // Synthetic input event so live bindings (form answers, previews) stay in sync.
+      // It does NOT fire `beforeinput`, so it can't trip the edit-intent stop below.
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function setUI(on) { if (opts.onState) opts.onState(on); }
+
+    function startSession() {
+      rec = new SR();              // fresh instance per session (mobile engines require it)
+      rec.lang = 'en-IN';
+      rec.continuous = true;
+      rec.interimResults = true;   // live preview while speaking
+      rec.onresult = (e) => {
+        // REBUILD from the engine's full results list every time — never accumulate
+        // across events, never trust resultIndex. The list itself is the state, so a
+        // re-sent or upgraded entry can't duplicate text.
+        let s = '';
+        for (let i = 0; i < e.results.length; i++) {
+          s = mergeCumulative(s, e.results[i][0].transcript);
+        }
+        session = s;
+        render();
+      };
+      rec.onerror = (e) => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed' ||
+            e.error === 'audio-capture') {
+          if (opts.onDenied) opts.onDenied();
+          stop();                  // hard failure: stop for real
+        }
+        // 'no-speech' / 'aborted' are benign — onend follows and decides what to do.
+      };
+      rec.onend = () => {
+        if (!recording) return;    // user stopped; stop() already cleaned up
+        // The engine ended ITSELF (mobile pause). Commit this session and keep listening.
+        voiceBase = joinSpeech(voiceBase, session);
+        session = '';
+        try { startSession(); } catch { stop(); }
+      };
+      rec.start();
+    }
+
+    function stop() {
+      recording = false;
+      if (rec) {
+        const r = rec;
+        rec = null;
+        r.onresult = null;         // no stale text can land in the box after we let go
+        r.onend = null;
+        r.onerror = null;
+        try { r.stop(); } catch { /* already ended */ }
+      }
+      setUI(false);
+    }
+
+    function start() {
+      voiceBase = target.value;    // append-mode: snapshot what's already typed
+      session = '';
+      recording = true;
+      try { startSession(); } catch { recording = false; return; }
+      setUI(true);
+    }
+
+    // Edit intent = stop signal: tapping into the transcript or typing while recording
+    // hands the user a perfectly normal text box, nothing can overwrite their edits.
+    target.addEventListener('pointerdown', () => { if (recording) stop(); });
+    target.addEventListener('beforeinput', () => { if (recording) stop(); });
+
+    return {
+      toggle() { recording ? (stop(), target.focus()) : start(); },
+      stop,
+      recording: () => recording,
+    };
   }
+
+  return { attach };
+})();
+
+// ---- The chat input's mic (behavior unchanged) ----------------------------------------
+(function () {
+  const mic = document.getElementById('chat-mic');
+  const micOn = document.getElementById('mic-on');
+  const micOff = document.getElementById('mic-off');
+  const input = document.getElementById('chat-input');
+  const form = document.getElementById('chat-form');
+  if (!window.TripVoice || !mic) return;   // unsupported browser -> mic stays hidden
+  mic.hidden = false;
 
   // Two distinct, obvious states everywhere (mobile/desktop): muted mic-with-slash when
   // idle ("tap to start speaking"), open mic + red glow + pulse while LISTENING.
-  function setRecordingUI(on) {
-    micOn.classList.toggle('hidden', !on);
-    micOff.classList.toggle('hidden', on);
-    ['text-red-400', 'border-red-400', 'bg-red-500/10', 'ring-2', 'ring-red-500/40',
-     'animate-pulse'].forEach((cls) => mic.classList.toggle(cls, on));
-    mic.title = on ? 'Listening… tap to stop' : 'Tap to start speaking';
-    mic.setAttribute('aria-pressed', on ? 'true' : 'false');
-  }
-
-  function startSession() {
-    rec = new SR();                // fresh instance per session (mobile engines require it)
-    rec.lang = 'en-IN';
-    rec.continuous = true;
-    rec.interimResults = true;     // live preview while speaking
-    rec.onresult = (e) => {
-      // REBUILD from the engine's full results list every time — never accumulate across
-      // events, never trust resultIndex. The list itself is the state, so a re-sent or
-      // upgraded entry can't duplicate text.
-      let s = '';
-      for (let i = 0; i < e.results.length; i++) {
-        s = mergeCumulative(s, e.results[i][0].transcript);
-      }
-      session = s;
-      renderVoice();
-    };
-    rec.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed' ||
-          e.error === 'audio-capture') {
-        mic.title = 'Microphone access was denied';
-        stopVoice();               // hard failure: stop for real
-      }
-      // 'no-speech' / 'aborted' are benign — onend follows and decides what to do.
-    };
-    rec.onend = () => {
-      if (!recording) return;      // user stopped; stopVoice() already cleaned up
-      // The engine ended ITSELF (mobile pause). Commit this session and keep listening.
-      voiceBase = joinSpeech(voiceBase, session);
-      session = '';
-      try { startSession(); } catch { stopVoice(); }
-    };
-    rec.start();
-  }
-
-  function stopVoice() {
-    recording = false;
-    if (rec) {
-      const r = rec;
-      rec = null;
-      r.onresult = null;           // no stale text can land in the box after we let go
-      r.onend = null;
-      r.onerror = null;
-      try { r.stop(); } catch { /* already ended */ }
-    }
-    setRecordingUI(false);
-  }
-
-  function startVoice() {
-    voiceBase = input.value;       // append-mode: snapshot what's already typed
-    session = '';
-    recording = true;
-    try { startSession(); } catch { recording = false; return; }
-    setRecordingUI(true);
-  }
-
-  mic.addEventListener('click', () => {
-    if (recording) { stopVoice(); input.focus(); } else { startVoice(); }
+  const voice = window.TripVoice.attach(input, {
+    onState(on) {
+      micOn.classList.toggle('hidden', !on);
+      micOff.classList.toggle('hidden', on);
+      ['text-red-400', 'border-red-400', 'bg-red-500/10', 'ring-2', 'ring-red-500/40',
+       'animate-pulse'].forEach((cls) => mic.classList.toggle(cls, on));
+      mic.title = on ? 'Listening… tap to stop' : 'Tap to start speaking';
+      mic.setAttribute('aria-pressed', on ? 'true' : 'false');
+    },
+    onDenied() { mic.title = 'Microphone access was denied'; },
   });
 
-  // Edit intent = stop signal. Tapping into the transcript or typing while recording
-  // stops the mic and hands the user a perfectly normal text box — cursor lands where
-  // they tapped, the keyboard opens, nothing can overwrite their edits afterwards.
-  input.addEventListener('pointerdown', () => { if (recording) stopVoice(); });
-  input.addEventListener('beforeinput', () => { if (recording) stopVoice(); });
+  mic.addEventListener('click', () => voice.toggle());
 
   // Submitting (Send / Enter) also stops any active recording before the message goes.
-  form.addEventListener('submit', () => { if (recording) stopVoice(); });
+  form.addEventListener('submit', () => voice.stop());
 })();
 </script>
