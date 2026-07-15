@@ -1192,3 +1192,11 @@ packaging/premium-experience; push + Railway deploy are the founder's keys. Befo
 run the SETUP-GUIDE's live QA (items 1–13 + World v8 checklist) — the agent-behavior
 changes especially need one real run. Post-deploy: hard-refresh once (SW serves prior
 assets for one visit), then verify on production.
+
+## 2026-07-16 09:30 — Committed clean; push + deploy handed to the founder
+All work is committed on packaging/premium-experience (working tree clean): the experience
+layer (c6b68d8), the sanctioned agent-behavior changes (faff670), and the full program
+record (9c89d04). Three earlier near-empty commits from a partial script run remain in
+history — harmless, left untouched rather than rewriting history. git push is blocked by
+the sandbox network policy (403 to github.com), so the final two commands run on the
+founder's machine: push, then railway up. Program complete.
