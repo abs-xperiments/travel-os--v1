@@ -153,7 +153,12 @@ _BANK: dict[str, dict] = {
         "field": "pace",
         "label": "What pace suits you?",
         "type": "single",
-        "options": ["Relaxed", "Balanced", "Packed"],
+        # Each option carries its own one-line meaning — travelers shouldn't have to guess.
+        "options": [
+            "Relaxed — slow mornings, plenty of breathing room",
+            "Balanced — full days without ever rushing",
+            "Packed — see everything, rest when you're home",
+        ],
         "allow_other": False,
     },
     "food_pref": {
@@ -167,7 +172,26 @@ _BANK: dict[str, dict] = {
         "field": "accommodation",
         "label": "Where do you like to stay?",
         "type": "single",
-        "options": ["Homestay", "Hotel", "Resort", "Hostel", "Boutique"],
+        "options": [
+            "Homestay — local, homely, great value",
+            "Budget hotel — clean and simple",
+            "Comfort hotel — solid mid-range",
+            "Resort — pool, views, amenities",
+            "Boutique / heritage — character stays",
+            "Hostel — cheapest, social",
+        ],
+        "allow_other": True,
+    },
+    "meals": {
+        "field": "meals",
+        "label": "How do you like to eat on a trip?",
+        "type": "single",
+        "options": [
+            "Meals at the stay — easy and included",
+            "Local eateries — eat where the locals do",
+            "Mix of both",
+            "A few special restaurants — worth the spend",
+        ],
         "allow_other": True,
     },
     # ---- Tier 3 (the agent includes these only when contextually relevant) ---
@@ -248,7 +272,7 @@ async def request_trip_details(
     "travelers": "2 people"}) — it is echoed back to the traveler so they see you listened,
     and those fields are NEVER asked again. Put only the genuinely missing field names in
     `missing`, from: origin, destination, travel_when, duration, group, budget, interests,
-    style, pace, food_pref, accommodation, accessibility, pets, remote_work.
+    style, pace, food_pref, accommodation, meals, accessibility, pets, remote_work.
     Pass `style` when the trip style is already known (e.g. "road trip") so its follow-up
     questions are included without re-asking.
 

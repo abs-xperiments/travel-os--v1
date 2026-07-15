@@ -226,3 +226,35 @@ ever).
 
 When every scenario here behaves as written, V1 works. Add new cases as we discover them,
 then make them pass.
+
+## 2026-07-15 — Discover launches the Tap-In questionnaire (product review fix)
+
+- **Bare discover:** user says just "discover" (or "not sure where to go") → expected: the
+  interactive questionnaire cards appear IMMEDIATELY (origin, when, days, group, budget,
+  interests; destination echoed as "Open to ideas") with one warm sentence and NO questions
+  in text. On submit ("Here are my trip details — …") → 3–5 ranked destination ideas using
+  those details, best budget fit first.
+- **Constrained discover (unchanged):** "Where should I go for 5 days in December, beaches,
+  under ₹40k?" → expected: ideas IMMEDIATELY, no questionnaire, no interrogation.
+- **Regression guard:** PLAN_TRIP gathering behavior is untouched; the questionnaire remains
+  the single source of preference collection in both flows.
+
+## 2026-07-15 — Tap-In v2 (product review round 2)
+
+- **Destination-only message:** user sends just "Switzerland" → expected: the questionnaire
+  cards appear IMMEDIATELY (destination echoed in the header), NO text questions. Anything
+  already stated ("Switzerland with my wife in August") is inferred into `known` and never
+  re-asked.
+- **Exact dates + live day count:** the When question is two date pickers (From/To, no
+  month-only, no flexible chip). Picking both auto-fills "How many days?" (inclusive) and
+  re-updates live when either date changes; end date can never precede start.
+- **Additional preferences:** every questionnaire ends with "Anything else I should
+  consider?" — typed or dictated (🎤 where the browser supports speech). Submitted as
+  "Additional preferences: …" and expected to visibly shape the plan.
+- **Pace/stay/meals asked with meaning:** options carry one-line explanations
+  ("Relaxed — slow mornings…", "Homestay — local, homely…", "Local eateries — …").
+- **Recommendation links:** every recommended stay/restaurant name is a markdown link to
+  a Google search (name + city) opening in a new tab — in quick asks AND inside built plans.
+- **PDF, multiple destinations:** two different destinations planned in one chat → the PDF
+  contains the FINAL itinerary of EACH, in order, with "Journey 1 of 2" dividers and page
+  breaks. Same destination iterated (5d → 7d Kerala) → only the final version exports.
