@@ -73,6 +73,29 @@
 }
 .j-day .md, .j-day-body { font-size: .95rem; }
 
+/* Chapters fold like a journal closing — smooth grid-row collapse, no JS measuring. */
+.j-day-toggle {
+  all: unset; cursor: pointer; display: block; width: 100%;
+  font: inherit; color: inherit; position: relative; padding-right: 1.6rem;
+}
+.j-day-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px;
+  border-radius: 6px; }
+.j-chev {
+  position: absolute; right: .2rem; top: 50%;
+  width: .55rem; height: .55rem;
+  border-right: 2px solid var(--text-low); border-bottom: 2px solid var(--text-low);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform var(--t-med) var(--ease);
+}
+.j-day.j-closed .j-chev { transform: translateY(-40%) rotate(-135deg); }
+.j-fold {
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows var(--t-slow) var(--ease);
+}
+.j-fold > .j-day-body { overflow: hidden; min-height: 0; }
+.j-day.j-closed .j-fold { grid-template-rows: 0fr; }
+.j-day.j-closed::before { display: none; }   /* the route spine folds away too */
+
 /* Time-of-day markers inside a chapter (Morning / Afternoon / Evening) */
 .j-day .md strong:first-child { color: var(--gold); }
 .j-tod {

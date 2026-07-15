@@ -345,6 +345,31 @@ html:not([data-sky="night"]) .w-shooting { display: none; }
 .md hr { border: none; height: 1px; margin: 1rem 0;
   background: repeating-linear-gradient(90deg, var(--line) 0 7px, transparent 7px 14px); }
 
+/* ------------------------------------------------------------ layer scale
+   One stacking order for the whole app — overlays must never fight content:
+   0  #world (the sky)          10 .above-world (the app)
+   20 in-content stickies (.j-nav)   30 app header + its dropdowns
+   40 full-screen overlays (#worldscape)   50 splash
+   New popovers/modals belong at 30+ inside the header layer or 40+ as overlays. */
+
+/* Dropdown surfacing: gentle, fast, never in the way. */
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to { opacity: 1; transform: none; } }
+#profile-menu:not([hidden]) { animation: menu-in var(--t-fast) var(--ease); }
+
+/* Messages surface like thoughts, not popups. */
+@keyframes msg-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.msg-in { animation: msg-in var(--t-med) var(--ease); }
+
+/* The thinking state: three quiet footsteps, not a blinking cursor. */
+.thinking { display: inline-flex; gap: .3rem; align-items: center; padding: .2rem 0; }
+.thinking i { width: 6px; height: 6px; border-radius: 999px; background: var(--gold);
+  opacity: .3; animation: think 1.3s var(--ease) infinite; }
+.thinking i:nth-child(2) { animation-delay: .18s; }
+.thinking i:nth-child(3) { animation-delay: .36s; }
+@keyframes think { 0%, 100% { opacity: .25; transform: translateY(0) }
+  40% { opacity: 1; transform: translateY(-3px) } }
+
 /* The departure moment: on send, the plane on the button lifts off. */
 @keyframes depart {
   0%   { transform: translate(0, 0) rotate(0); }

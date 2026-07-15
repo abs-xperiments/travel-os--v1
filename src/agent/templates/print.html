@@ -90,6 +90,9 @@
       padding-top: .8rem; color: var(--paper-low); font-size: .8rem;
       display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
     .j-footer .btn-ghost { display: none; }  /* no interactive buttons on paper */
+    .j-chev { display: none; }               /* fold chevrons are meaningless in a document */
+    .j-day-toggle { all: unset; font: inherit; color: inherit; display: block; }
+    .j-fold { display: block !important; }   /* chapters never fold on paper */
 
     /* Markdown inside the document */
     .md h1, .md h2, .md h3 { font-family: "Fraunces", Georgia, serif;

@@ -78,7 +78,10 @@
 </script>
 {% endif %}
 <div class="flex flex-col h-screen max-w-2xl mx-auto">
-  <header class="glass mx-2 mt-2 flex items-center justify-between px-4 py-3 sm:mx-0">
+  {# relative z-30: .glass's backdrop-filter creates a stacking context; without an explicit
+     z-index the header paints in DOM order and later content (chat, the journal's sticky
+     day-nav at z-20) can cover its dropdown. Layer scale lives in theme.css. #}
+  <header class="glass relative z-30 mx-2 mt-2 flex items-center justify-between px-4 py-3 sm:mx-0">
     <div class="flex items-baseline gap-2">
       <a href="/" class="font-display text-xl font-bold tracking-tight"
          style="color:var(--text-hi)">Trip<span style="color:var(--gold)">OS</span></a>
@@ -213,16 +216,25 @@
   const chat = document.getElementById('chat');
   let controller = null;
 
+  // Auto-scroll that respects the reader: stick to the bottom only when the user is
+  // already there — never yank someone who scrolled up to reread a day plan.
+  function nearBottom() {
+    return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 140;
+  }
+  function stick(force) {
+    if (force || nearBottom()) chat.scrollTop = chat.scrollHeight;
+  }
+
   function addBubble(role) {
     const row = document.createElement('div');
-    row.className = role === 'user' ? 'flex justify-end' : 'flex';
+    row.className = (role === 'user' ? 'flex justify-end' : 'flex') + ' msg-in';
     const inner = document.createElement('div');
     inner.className = role === 'user'
       ? 'max-w-[85%] whitespace-pre-wrap bubble-user'
       : 'md max-w-[92%] bubble-bot';
     row.appendChild(inner);
     chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
+    stick(true);
     return inner;
   }
 
@@ -240,11 +252,11 @@
 
     addBubble('user').textContent = message;
     const bot = addBubble('assistant');
-    bot.innerHTML = '<span class="animate-pulse" style="color:var(--text-low)">▍</span>';
+    bot.innerHTML = '<span class="thinking" aria-label="TripOS is thinking"><i></i><i></i><i></i></span>';
 
     // A separate, transient "what's happening" note shown while a tool runs.
     const progRow = document.createElement('div');
-    progRow.className = 'flex';
+    progRow.className = 'flex msg-in';
     progRow.style.display = 'none';
     const prog = document.createElement('div');
     prog.className = 'bubble-note checkpoint max-w-[92%] px-4 py-2 whitespace-pre-line';
@@ -301,7 +313,7 @@
             hideProg();
             bot.innerHTML = marked.parse(acc + '\n\n*' + data.error + '*');
           }
-          chat.scrollTop = chat.scrollHeight;
+          stick();
         }
       }
       hideProg();
@@ -314,7 +326,7 @@
       if (err.name === 'AbortError') return;              // superseded by a newer message
       bot.innerHTML = 'Sorry — the connection dropped. Please try again.';
     }
-    chat.scrollTop = chat.scrollHeight;
+    stick();
   }
 
   form.addEventListener('submit', (e) => {
@@ -377,13 +389,31 @@
   const profileBtn = document.getElementById('profile-btn');
   const profileMenu = document.getElementById('profile-menu');
   if (profileBtn && profileMenu) {
+    profileBtn.setAttribute('aria-haspopup', 'menu');
+    profileBtn.setAttribute('aria-expanded', 'false');
+    const setMenu = (open) => {
+      profileMenu.hidden = !open;
+      profileBtn.setAttribute('aria-expanded', String(open));
+    };
     profileBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      profileMenu.hidden = !profileMenu.hidden;
+      setMenu(profileMenu.hidden);
     });
-    document.addEventListener('click', () => { profileMenu.hidden = true; });
+    document.addEventListener('click', () => setMenu(false));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !profileMenu.hidden) { setMenu(false); profileBtn.focus(); }
+    });
     profileMenu.addEventListener('click', (e) => e.stopPropagation());
   }
+
+  // "/" focuses the departure field from anywhere (unless already typing somewhere).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = (document.activeElement || {}).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    e.preventDefault();
+    input.focus();
+  });
 
   // ---- Questionnaire renderer: one structured block for missing trip details ---------
   // The agent decides WHAT to ask; this renders the spec. Answers compose into a normal
@@ -568,7 +598,7 @@
     box.appendChild(submit);
 
     chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
+    stick(true);                        // a fresh questionnaire should always be seen
   }
 
 })();
