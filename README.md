@@ -85,3 +85,13 @@ uv run fastapi dev src/agent/web.py   # run the web app
 ## Configuration
 
 All config is environment variables, loaded from `.env` (never commit it). See `.env.example` for every option. Only `OPENROUTER_API_KEY` is required; add the rest when a project needs media, storage, or a database.
+
+
+## The experience layer (2026-07)
+
+The UI/UX was rebuilt by an AI Packaging Studio program — design system (`src/agent/static/theme.css`),
+living-world landing (`worldscape*.js/css`), Travel Journal itinerary renderer (`itinerary.js` +
+`journal.css`), and a formal PDF export (`templates/print.html`). Planning logic was preserved;
+three sanctioned agent-behavior changes are documented in `docs/scenarios.md`. The program's
+roadmap, decisions, phase log, previews and launch checklist live in `packaging/`
+(start with `packaging/SETUP-GUIDE.md`).

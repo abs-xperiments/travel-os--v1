@@ -977,3 +977,218 @@ live app (darwin .venv + prod DB), Lighthouse/axe against a running instance, an
 Railway deploy — these are in packaging/SETUP-GUIDE.md for the founder; after deploy I can
 verify the production site via the Claude Chrome extension. Sound and WebGL world v2 stay
 deferred by decision (assets/perf), recorded in ROADMAP + decisions.md.
+
+## 2026-07-15 15:00 — World v2: the Worldscape overture (user-approved WebGL)
+The user asked for the full immersive treatment (the "crypto fantasy world" inspiration,
+translated to travel). Built static/worldscape.js: a scroll-driven Three.js flight through a
+procedural dreamscape — floating pine islands, a drifting hot-air balloon, a train crossing
+a viaduct, painterly low-poly terrain under golden-hour light — with oversized Fraunces
+storytelling sections, landing in the chat input. Key calls: it's an OVERTURE over the fresh
+chat (adding a landing route would touch frozen routing); Three.js via CDN importmap (no
+build step); transparent canvas so the token-driven CSS sky remains the actual sky; strict
+mount guards (fresh chat only, WebGL present, no reduced-motion, once per session) and a
+sacred degradation path — skip button, Escape, scroll-to-end, or any error all land you in
+the product. Camera is a CatmullRom path with eased scroll-following; everything procedural,
+zero downloaded assets. Preview: packaging/preview-worldscape.html.
+
+## 2026-07-15 16:00 — World v3: presence, not fantasy — the overture rebuilt on real Earth
+The founder reframed the vision: not a stylized dreamscape, but the feeling of actually
+standing there. Right call, and it simplified the engineering: real cinematic photography
+delivers presence better than browser-feasible 3D, so worldscape.js was rewritten without
+Three.js. The journey is five graded photographic scenes (sunrise valley → alpine ridge →
+forest canopy → still backwaters → aurora) traveled by scroll with a documentary camera:
+slow push-ins per scene, hand-held micro-drift from two incommensurate sines (never loops),
+heavy easing so the rig "commits and settles." Optics layer in CSS: two drifting fog banks
+whose density follows the landscape, embedded film-grain tile (generated PNG data-URI,
+animated in steps), vignette, per-scene atmospheric grading. Presence needs patience but
+never hostages: 4s first-frame budget, Save-Data respected, all previous escape hatches
+kept. Unsplash CDN hotlinks verified reachable; scene list is a plain array — swapping
+photography is a one-line edit. The deep-realism tier (PBR/HDRI/WebGPU, spatial audio) is
+recorded as the capable-device Phase 5 path in the roadmap, not skipped.
+
+## 2026-07-15 17:00 — World v4: the fantasy flight returns, perfected
+The founder compared both worlds and chose the fantasy dreamscape — the photographic
+presence engine (v3) "didn't feel smooth and immersive" to them. Taste calls belong to the
+founder; restored the Three.js flight and spent the effort making it the best version of
+itself: a low sun glowing on the horizon that dims as a night veil deepens (progress-driven
+day→night arc), an aurora ribbon that unfurls in the last act with animated vertex waves,
+fireflies drifting at dusk altitude (auto-skipped on <4GB devices), the locomotive now
+breathes pooled steam puffs, unpredictable meteors, a rippling valley lake, and a camera
+that banks into turns from the path tangent with subtle FOV breathing. Damping is now
+frame-rate independent (1-0.01^dt) so the glide feels identical at 60 and 120Hz — likely
+the root of the earlier "not smooth" feel on high-refresh screens. Kept v3's real wins:
+breathing typography, vignette, Save-Data guard, first-frame ws-ready fade. Zero external
+image dependencies again. v3's photographic engine remains in git history.
+
+## 2026-07-15 18:00 — World v5: the world is the product
+Product insight from the founder, and it's the right one: the world asked users to explore
+while the UI asked them to read. Rebuilt the arrival as two doors — Explore the world /
+Plan my trip — with Plan always one tap away (persistent glass CTA, Escape key). The
+exploration system is deliberately architectural, not decorative: a LANDMARKS registry
+(anchor, camera offset, gaze, one-line whisper, optional follow) drives everything — click
+the isles, balloon, train, lake or sky and an arced bezier flight with cinematic easing
+takes you there; the train and balloon are rides (the camera travels with them, the valley
+does the rest). Overview mode drifts idly with pointer parallax and drag-to-look that
+relaxes home. Fixed the founder's "white floating shapes" complaint properly: clouds are
+now layered elongated sprite clusters, and the night sky gained swaying lanterns. The
+dawn/dusk system got promoted from ambient trick to playable feature: a sky dial in the
+chat header (auto/dawn/day/dusk/night, persisted in localStorage, honored by base.html and
+by the world's day-cycle phase). Hero copy deleted — one wordmark, one line, two buttons.
+Scaling note: a future destination is one registry entry, zero engine changes. worldscape.js
+sits at 547 lines, a deliberate slight overage of the ~500 rule (splitting builders would
+cost an extra request for no clarity gain) — recorded in decisions.md.
+
+## 2026-07-15 19:00 — World v6: the painted journey — direction settled
+The founder called it: the original scroll-flight IS the landing experience. Reverted the
+explorable/dual-door layer (v5) and kept one journey with one button. Spent the energy on
+making the flight a digital painting: the path now crosses five biomes — high country with
+the floating isles, the valley and its steaming train, a real pine forest (InstancedMesh
+planted on the shared terrain heightfield), a palm-lined shore where the land melts into
+sand via a smoothstep blend and a whale breaches in slow arcs, then open ocean under a
+sun-path glow that dims into night as the aurora unfurls. Palette pushed painterly: violet
+haze fog, saturated greens, warm snow. Kept every hard-won win from the detours: layered
+cloud clusters, banking camera, framerate-independent damping, breathing type, night veil,
+sky dial, all guards. Removed: landmark registry, raycast, drag-look (git history keeps
+them). worldscape.js is 503 lines — back inside the repo's ~500 rule. Lesson recorded:
+three taste iterations in one day was the cheap way to find the direction — each version
+was a complete, working artifact the founder could feel, not a mockup to imagine.
+
+## 2026-07-15 20:00 — Product review fixes: Discover→Tap-In, overlay layering, planner polish
+The founder's product review, treated as a spec. Issues found, root causes, and fixes:
+
+1) DISCOVER BYPASSED THE TAP-IN CARDS (root cause, not a bug): the system prompt's
+DISCOVER_DESTINATIONS bullet deliberately said "call suggest_destinations NOW — nothing else
+is required," a rule written for constrained asks ("5 days in December, beaches") that also
+swallowed the bare "discover" the greeting itself invites — so travelers got instant
+India-leaning suggestions and text questions instead of the questionnaire. Fix: a surgical
+prompt edit (explicitly instructed by the founder — recorded as a sanctioned exception to
+the frozen-logic rule): the DISCOVER bullet now has two sub-cases — constrained discover
+still answers immediately (don't interrogate), bare discover calls request_trip_details
+FIRST (destination echoed as "Open to ideas"; missing = origin/when/duration/group/budget/
+interests) and only then suggests. No new code paths: the existing questionnaire bank, tool,
+SSE form channel and card renderer are reused end-to-end — single source of truth held.
+Scenario added to docs/scenarios.md; LIVE validation required in local QA (can't run the
+agent from the sandbox) — added to the setup guide.
+
+2) PROFILE MENU CLIPPED UNDER CHAT (root cause): .glass uses backdrop-filter, which creates
+a stacking context; the header had NO z-index, so it painted in DOM order and the journal's
+sticky day-nav (z-20) + later content covered the dropdown despite its inner z-40. Fix:
+the header now owns layer 30, and theme.css documents a single app-wide layer scale
+(world 0 / app 10 / stickies 20 / header+dropdowns 30 / overlays 40 / splash 50) so future
+popovers don't reinvent z-indexes. Also: menu open/close animation, aria-haspopup/
+aria-expanded, Escape closes and refocuses the trigger.
+
+3) PLANNER POLISH (purposeful only): reader-respecting auto-scroll (sticks to bottom ONLY
+if the user is already near it — no more yanking mid-read; user messages and fresh
+questionnaires still force-scroll), messages surface with a 240ms rise, the blinking-cursor
+placeholder became a three-dot thinking state, "/" focuses the input from anywhere, and
+journal day chapters are now real disclosure buttons that fold via grid-template-rows
+(no JS measuring, keyboard accessible, all open by default, spine hides when folded,
+print.html force-unfolds and hides chevrons so the PDF never loses content).
+
+Testing: templates compile, itinerary.js + inline JS parse, prompt.py parses and passes the
+100-col rule. NOT testable here: the live discover flow and streaming UX — both added to
+the founder's local QA checklist. Follow-ups recommended: run docs/scenarios.md discover
+cases live before deploy; consider a portal layer if modals ever exceed the header context.
+
+## 2026-07-15 21:00 — World v7: the journey earns its introduction
+Design review implemented: the landing is now a narrative — explore, discover, meet, plan.
+Removed the floating isles and the balloon (fantasy from atmosphere, not floating geometry)
+and the greeting chat bubble (the intro is earned at the end; a "discover" link in the hero
+keeps that affordance alive). The forest became handcrafted-feeling through variation, not
+assets: three species (tiered evergreen, rounded broadleaf, rare ancients) instanced with
+per-tree scale/tint/rotation, noise-carved clearings, glowing undergrowth motes. New snow
+chapter: peaks raised in the same shared heightfield, cold blue hemisphere light, snowfall
+gated to the region, and five tiny trekkers walking a ridge trail — life discovered inside
+the landscape. The lake is now the dream metropolis: ~95 instanced towers with an emissive
+window texture, three landmark spires with beacons, city haze, and aerial trams gliding
+sine lanes. The finale dips beneath the ocean: a deep veil sinks with the camera and turns
+into the planning theme's ink, the diver-guide (glowing visor, gold tank, halo) rises
+through wandering bubbles, and TripOS speaks three staged lines ending in one Begin button.
+Scroll-to-end now triggers the meeting instead of an abrupt exit. Engineering: split into
+engine + scenery modules (316/401 lines, back under the ~500 rule), instancing throughout,
+region-gated particle updates, LOW-tier trims. All templates/JS validate; the journey needs
+the founder's eyes in preview + the usual local QA before deploy.
+
+## 2026-07-15 22:00 — Tap-In v2: destination case, real dates, extras + mic, smarter PDF
+Second product review implemented end-to-end (founder granted modify-anything scope):
+AGENT (prompt.py + questionnaire.py): a destination-only message ("Switzerland") is now
+explicitly PLAN_TRIP-GATHERING → request_trip_details immediately, never text bullets (the
+screenshot bug — deployed old code made it worse, but the rule is now unambiguous); known
+preferences are echoed, never re-asked (existing bank behavior, unchanged); pace options now
+carry crisp meanings; accommodation options widened (homestay→hostel with one-line whys);
+NEW `meals` bank field (meals-at-stay / local eateries / mix / few special restaurants)
+included with budget context; recommendations must linkify every stay/restaurant name to a
+Google search URL (name+city) — in quick asks and inside built plans.
+FORM (chat.html): the When question is now exact From/To date pickers (month-only and
+flexible removed by request); picking dates auto-fills and live-re-updates "How many days?"
+via a fieldInputs registry (inclusive count, end clamped to start); every form ends with an
+"Anything else I should consider?" textarea with a 🎤 dictation chip (SpeechRecognition,
+hidden when unsupported) composing into the same submitted message.
+OPTICS: .field gets color-scheme:dark + inverted calendar indicator (the invisible icon);
+avatar images now fall back to the initial letter on load error (header + profile);
+external links in replies open in new tabs with rel=noopener.
+PDF (print.html): selection upgraded from "last itinerary" to "last itinerary PER DISTINCT
+DESTINATION" (destination key = journal title before separators/digits): iterations
+collapse to the final version; genuinely different trips all export, in order, with
+"Journey n of m" dividers and page breaks.
+Testing: templates compile; chat/base/print inline JS parse; prompt/questionnaire parse
+clean at 100 cols; questionnaire tests assert structure not copy (verified — additive-safe).
+Live QA additions in the setup guide. Follow-up: the "meals" field needs one live
+scenario-validation run before deploy.
+
+## 2026-07-15 23:00 — Dictation duplication + calendar icon: root causes, not patches
+Two founder-reported bugs, both root-caused:
+1) FORM MIC DUPLICATION ("I I want I want the…"): the extras dictation I added used naive
+per-event appending — the exact bug the chat mic solved on 2026-06-07. Mobile/desktop
+engines re-send the transcript cumulatively and mark growing prefixes final repeatedly;
+appending each event duplicates every prefix. Fix per the founder's instruction: the chat
+mic's battle-tested logic is now a reusable engine — window.TripVoice (in
+_voice_input.html) with the rebuild-from-results loop, cumulative merge, pause-session
+commits, edit-intent stop and mute/unmute toggle — and BOTH mics run through it (the chat
+mic wiring is behavior-identical; the form mic is a chip with the same
+listening/stop states, dictating into the textarea with live answer sync via a synthetic
+input event that cannot trip the edit-intent stop). Regression test added to the
+validation run simulating the cumulative-resend shape: passes, output exactly
+"I want the trip to be extremely good".
+2) CALENDAR ICON STILL INVISIBLE: my own earlier fix was self-cancelling — color-scheme:
+dark makes Chromium/Safari draw a LIGHT indicator, and the invert() filter I added on top
+flipped it back to dark. Removed the filter, forced opacity 1, and gave the glyph a soft
+gold chip background so it reads on any sky. Also bumped the service worker cache to
+tripos-v3 — testers with the installed PWA would otherwise see stale CSS for one visit
+(stale-while-revalidate) and report the bug as unfixed.
+
+## 2026-07-16 00:00 — URL trust + World v8: the finalized fantasy
+Two founder fixes. (1) URL RELIABILITY: a Manali plan invented "rohtangpermits.nic.in" —
+exactly the failure that erodes trust. The prompt now carries a hard URL policy: never
+invent/guess/reconstruct a URL; stays and eateries always get Google-search links;
+attractions get none or a search-link (official sites only when certain); permits and
+official bookings get a search-link to "X permit official" unless the official URL is
+certain. A working search beats a broken official-looking link, always.
+(2) WORLD v8: diagnosed v7's "long flat green landscape" — the camera flew high over small
+trees, so the forest read as carpet, and the peaks came mid-journey. Rebuilt to the
+founder's final arc with the camera LOW and inside the world: snow peaks first (a corridor
+carved through the heightfield so you weave between summits; trekkers and the steaming
+viaduct live here now), diffusing into a living forest of trees roughly twice as tall that
+tower over the lens — five deer graze in noise-carved clearings, heads dipping on slow
+clocks — diffusing into the night metropolis flown straight down its avenue, then a real
+beach again (palms back, two surf-foam bands breathing against the sand), skimming the
+waves, slipping under, and the traveler's GENIE rises: luminous teal spirit, arms open,
+wisp tail, gold sash, ten sparks orbiting. Every transition is an overlapping smoothstep
+in one shared heightfield with position-lerped light — diffusion, never a cut. Validation
+now includes an engine↔scenery import-contract check (24 symbols). 337+472 lines.
+
+## 2026-07-16 09:00 — Packaging program complete: committed, documented, ready to ship
+End of the Packaging Studio engagement. Everything delivered across one intense cycle:
+the Golden Hour Atlas design system, the living-world global UI, the Travel Journal
+itinerary renderer, the per-destination formal PDF export, the Tap-In questionnaire
+everywhere (destination-only + discover) with exact-date pickers, live day-count, extras +
+dictation via the shared TripVoice engine, the URL-reliability policy (never invent links),
+and the finalized World v8 fantasy flight (snow peaks → living forest with deer → night
+metropolis → palm shore → sea → the traveler's genie). Business logic stayed frozen except
+three founder-sanctioned agent-behavior fixes (discover→cards, destination→cards + meals +
+linked recommendations, URL policy), each isolated in its own commit. Committed on
+packaging/premium-experience; push + Railway deploy are the founder's keys. Before deploy:
+run the SETUP-GUIDE's live QA (items 1–13 + World v8 checklist) — the agent-behavior
+changes especially need one real run. Post-deploy: hard-refresh once (SW serves prior
+assets for one visit), then verify on production.

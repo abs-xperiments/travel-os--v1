@@ -1,0 +1,78 @@
+<!doctype html>
+<!-- Packaging Studio preview — the narrative journey (Worldscape v7), standalone.
+     Open in a browser (needs internet for Three.js + fonts). Scroll slowly:
+     highlands → ancient forest → snow passes (find the trekkers) → the dream city →
+     beneath the ocean, where the diver-guide rises and TripOS introduces itself. -->
+<html lang="en" data-sky="dusk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TripOS — narrative journey preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;650&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../src/agent/static/theme.css">
+<link rel="stylesheet" href="../src/agent/static/worldscape.css">
+</head>
+<body class="antialiased">
+<div id="world" aria-hidden="true">
+  <div class="w-stars"></div><div class="w-clouds-far"></div><div class="w-clouds"></div>
+  <div class="w-terrain-far"></div><div class="w-terrain"></div>
+</div>
+<div class="above-world" style="display:flex;min-height:100vh;align-items:center;justify-content:center">
+  <div class="glass" style="padding:2rem;text-align:center;max-width:26rem">
+    <div class="font-display" style="font-size:1.6rem;font-weight:700">You've landed.</div>
+    <p style="color:var(--text-mid);margin-top:.6rem;font-size:.95rem">
+      This box stands in for the chat. Reload to take the journey again.</p>
+  </div>
+</div>
+
+<div id="worldscape" hidden role="region" aria-label="Welcome journey — scroll to travel, or skip">
+  <div class="ws-night" aria-hidden="true"></div>
+  <canvas aria-hidden="true"></canvas>
+  <div class="ws-deep" aria-hidden="true"></div>
+  <div class="ws-vignette" aria-hidden="true"></div>
+  <button type="button" class="btn-ghost ws-skip text-sm" id="ws-skip"
+          style="font-size:.85rem">Skip to planning →</button>
+  <div class="ws-scroll" tabindex="0"><div class="ws-track"></div></div>
+  <section class="ws-section" data-at="0.03" style="opacity:1">
+    <div class="ws-kicker">The high silence</div>
+    <h2 class="ws-title">Feel the trip <em>before</em> you take it.</h2>
+    <p class="ws-sub">Begin where the air is thin. Scroll to fly.</p>
+  </section>
+  <section class="ws-section" data-at="0.3">
+    <div class="ws-kicker">The living forest</div>
+    <h2 class="ws-title">Wander where the forest <em>breathes</em>.</h2>
+    <p class="ws-sub">Anywhere on Earth, planned around you.</p>
+  </section>
+  <section class="ws-section" data-at="0.56">
+    <div class="ws-kicker">The dream city</div>
+    <h2 class="ws-title">Chase the lights that never <em>sleep</em>.</h2>
+  </section>
+  <section class="ws-section" data-at="0.8">
+    <div class="ws-kicker">The shore</div>
+    <h2 class="ws-title">Follow the shore into the <em>sea</em>.</h2>
+  </section>
+  <div class="ws-meet" hidden>
+    <div class="ws-meet-line">Hi, I'm Trip<em style="font-style:normal;color:var(--gold)">OS</em>.</div>
+    <div class="ws-meet-line">Your AI travel planner. I build real, day-by-day journeys —
+      the stays, the food, the budget — around you.</div>
+    <div class="ws-meet-line">Ready to begin your journey?</div>
+    <div class="ws-cta"><button type="button" class="btn-primary" id="ws-begin">Begin</button></div>
+  </div>
+  <div class="ws-hint">Scroll to travel</div>
+</div>
+
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+  import { start } from '../src/agent/static/worldscape.js';
+  const el = document.getElementById('worldscape');
+  el.hidden = false;
+  const world = start(el, () => {});
+  document.getElementById('ws-skip').addEventListener('click', () => world.finish());
+  document.getElementById('ws-begin').addEventListener('click', () => world.finish());
+</script>
+</body>
+</html>

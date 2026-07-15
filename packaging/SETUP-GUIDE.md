@@ -73,3 +73,67 @@ and the Lighthouse/axe passes that complete Phase 8's QA gates) and report hones
   generate candidates with an image model whenever you want to pick one.
 - **Structured itinerary output + shareable trip pages** — both need logic changes; parked
   as ROADMAP "standing suggestions" until you explicitly approve.
+
+## Added 2026-07-15 (product-review fixes) — MUST-RUN live QA
+
+These two behaviors can only be verified with the app running (`uv run fastapi dev
+src/agent/tripos_web.py`):
+1. **Bare discover → cards:** send just "discover". Expected: the interactive questionnaire
+   cards appear immediately (origin, when, days, group, budget, interests — destination
+   echoed as "Open to ideas"), ONE warm sentence, no questions in text. Submit → 3–5 ranked
+   destination ideas built from your answers.
+2. **Constrained discover unchanged:** send "where should I go for 5 days in December,
+   beaches, under ₹40k". Expected: immediate ideas, NO questionnaire.
+3. **Profile menu:** open it on a trip with a long itinerary — it must sit above every
+   message and the sticky day navigator; Escape closes it.
+4. **Reading comfort:** while a long plan streams, scroll UP — the view must stay where you
+   put it (no yanking); scroll back down and it resumes following.
+5. **Chapters:** click a day heading in the journal — it folds smoothly; print preview
+   always shows every chapter unfolded.
+
+## Added 2026-07-15 (Tap-In v2) — MUST-RUN live QA additions
+
+6. **Destination-only → cards:** send just "Switzerland". Expected: the questionnaire cards
+   appear immediately, destination echoed in the header, ZERO questions in text.
+7. **Known prefs never re-asked:** send "Switzerland with my wife in August, we love
+   trains". Expected: the cards skip who's-travelling and when; the header echoes them.
+8. **Dates → days:** pick From/To dates in the card — "How many days?" fills itself and
+   re-updates when you change either date; the calendar icon is clearly visible.
+9. **Anything else + mic:** type or dictate an extra preference ("we're celebrating our
+   anniversary") — after submit, the built plan should visibly honor it.
+10. **Linked recommendations:** in a built plan or "best homestays in Munnar" ask, every
+    stay/eatery name opens a Google search for it in a new tab.
+11. **Multi-destination PDF:** plan Kerala fully, then say "actually plan Bali instead" and
+    finish; Download PDF → ONLY Bali. Then in a new trip plan two different full
+    itineraries → PDF contains both with "Journey 1 of 2 / 2 of 2" dividers.
+
+## Added 2026-07-15 (bug-fix round) — re-verify these two
+
+12. **Extras dictation:** in any questionnaire, tap "🎤 Speak" and say a full sentence with
+    pauses ("I want the trip… to be extremely good"). Expected: the sentence appears ONCE,
+    live, with a "● Listening… tap to stop" state; tapping again (or tapping into the text,
+    or submitting) stops it. Repeat on your phone — mobile engines are where the old bug
+    lived.
+13. **Calendar glyph:** the From/To date fields show a clearly visible calendar icon on a
+    soft gold chip (hover brightens it). If you still see nothing: hard-refresh once —
+    the service worker serves the previous CSS for exactly one visit after a deploy.
+
+## Added 2026-07-16 (World v8, FINAL) — the finalized fantasy, review checklist
+
+Open `packaging/preview-worldscape.html` and scroll SLOWLY:
+1. You start LOW between snow walls — peaks tower on both sides, snow falls, trekkers walk
+   a ridge, the train steams across a snowy viaduct. Cold blue light.
+2. The snow diffuses into the living forest — trees tower OVER you (no flat green!), deer
+   graze in the clearings (watch their heads dip), fireflies and glowing plants at dusk.
+3. The forest thins into the night metropolis — you fly straight down the avenue between
+   glowing towers; trams glide overhead; night has fallen seamlessly.
+4. The city gives way to the shore — palms, sand, two foam lines breathing on the beach.
+5. You skim the waves, slip beneath — and the traveler's genie rises in light and sparks;
+   "Hi, I'm TripOS…"; Begin lands in the chat.
+6. Every transition should feel like a diffusion — if any seam feels like a cut, tell me
+   which one. Skip/Escape land instantly from anywhere.
+
+Also verify (URL policy, live app): ask for a Manali plan mentioning Rohtang — the permit
+text must link to a Google search ("Rohtang Pass permit official"), never an invented
+domain; every stay/eatery name opens a Google search in a new tab.
+
