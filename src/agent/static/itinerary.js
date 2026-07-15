@@ -140,15 +140,34 @@
       badge.className = 'j-day-badge';
       badge.textContent = d.n;
       badge.setAttribute('aria-hidden', 'true');
+      // The chapter head is a real disclosure button: long trips fold neatly,
+      // everything starts OPEN so nothing is ever hidden by default.
       var head = document.createElement('h3');
       head.className = 'j-day-head';
-      head.innerHTML = '<span class="j-day-label">Day ' + d.n + '</span>';
-      head.appendChild(document.createTextNode(d.title || 'The journey continues'));
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'j-day-toggle';
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.innerHTML = '<span class="j-day-label">Day ' + d.n + '</span>';
+      toggle.appendChild(document.createTextNode(d.title || 'The journey continues'));
+      var chev = document.createElement('span');
+      chev.className = 'j-chev';
+      chev.setAttribute('aria-hidden', 'true');
+      toggle.appendChild(chev);
+      head.appendChild(toggle);
+      var fold = document.createElement('div');
+      fold.className = 'j-fold';
       var body = document.createElement('div');
       body.className = 'md j-day-body';
       d.nodes.forEach(function (n) { body.appendChild(n); });
       markTimesOfDay(body);
-      sec.appendChild(badge); sec.appendChild(head); sec.appendChild(body);
+      fold.appendChild(body);
+      toggle.addEventListener('click', function () {
+        var open = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!open));
+        sec.classList.toggle('j-closed', open);
+      });
+      sec.appendChild(badge); sec.appendChild(head); sec.appendChild(fold);
       journal.appendChild(sec);
     });
 
