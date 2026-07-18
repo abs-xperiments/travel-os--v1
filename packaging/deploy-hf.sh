@@ -25,9 +25,10 @@ echo "✓ New code verified"
 
 hf auth whoami >/dev/null 2>&1 || { echo "✗ Not logged in: run  hf auth login"; exit 1; }
 
-# Create the Space on first run (harmless if it already exists).
-hf repo create "$SPACE" --repo-type space --space-sdk docker \
-  || echo "  (already exists — continuing)"
+# Create the Space on first run via the Python API — stable across CLI versions
+# (the `hf repo create` flags drift between releases; exist_ok makes this idempotent).
+python3 -c "from huggingface_hub import create_repo; \
+print(create_repo('$SPACE', repo_type='space', space_sdk='docker', exist_ok=True))"
 
 git remote get-url space >/dev/null 2>&1 \
   || git remote add space "https://huggingface.co/spaces/$SPACE"
