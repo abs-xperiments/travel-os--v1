@@ -1,3 +1,13 @@
+---
+title: TripOS
+emoji: 🌍
+colorFrom: yellow
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Agent Starter (Python)
 
 An opinionated, batteries-included starter for building AI agents — from simple scripts to Telegram bots to small web apps. You clone it, point Claude Code at it, and build.
