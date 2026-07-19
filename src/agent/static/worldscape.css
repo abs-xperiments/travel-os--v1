@@ -8,6 +8,11 @@
 #worldscape {
   position: fixed; inset: 0; z-index: 40;
   opacity: 0; transition: opacity 1s var(--ease);
+  /* The world owns its sky (same hour-keyed gradient as #world): an opaque backdrop,
+     so the chat page beneath can never bleed through the journey (prod finding,
+     2026-07-20 — hero text and header buttons showed through the transparent canvas). */
+  background: linear-gradient(180deg,
+    var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-low) 100%);
 }
 #worldscape.ws-ready { opacity: 1; }
 #worldscape.ws-leaving { opacity: 0; pointer-events: none; transition-duration: .85s; }
