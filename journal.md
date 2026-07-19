@@ -1200,3 +1200,18 @@ record (9c89d04). Three earlier near-empty commits from a partial script run rem
 history — harmless, left untouched rather than rewriting history. git push is blocked by
 the sandbox network policy (403 to github.com), so the final two commands run on the
 founder's machine: push, then railway up. Program complete.
+
+## 2026-07-20 00:15 — LAUNCHED: TripOS live on Render (free tier, Singapore)
+Deployment odyssey complete. Railway credits died → HF Docker Spaces turned out to be
+PRO-gated (policy changed; owned the stale advice) → Render free tier verified alive and
+became home. Drove the setup through the founder's browser: GitHub-connected service
+"tripos" (Docker, main, Singapore, Free), 16 secrets pasted by the founder via the
+.env bulk dialog (never through me), APP_BASE_URL added post-create, first build green on
+commit 7bfeec6, env redeploy live. PRODUCTION VERIFIED by eye: hour-keyed greeting, snow
+chapter with trekkers + steaming viaduct + night metropolis, scroll-flight responding,
+deer in frame. URL: https://tripos-z8so.onrender.com. One prod finding fixed on the spot:
+the overlay's transparent canvas let the chat hero/header bleed through the journey —
+worldscape now paints its own opaque hour-keyed sky. Remaining founder steps: push this
+fix (Render auto-deploys), add the Google OAuth redirect
+(https://tripos-z8so.onrender.com/auth/google/callback), then the SETUP-GUIDE live QA
+(items 1–13) + an UptimeRobot ping to stay warm during launch.
